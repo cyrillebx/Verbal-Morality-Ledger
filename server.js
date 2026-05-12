@@ -257,6 +257,50 @@ app.post("/api/withdraw", async (req, res) => {
 });
 
 // ── LEADERBOARD ───────────────────────────────────────────
+
+app.post("/api/deposit-confirm", (req, res) => {
+  const { address, txHash } = req.body;
+  console.log("deposit-confirm:", address);
+  if (!address) return res.status(400).json({ error: "Missing address" });
+  if (!sessions.has(address)) {
+    sessions.set(address, { username: address.slice(0,8), balance: 0, swearCount: 0 });
+  }
+  const session = sessions.get(address);
+  session.balance += parseInt(DEPOSIT_AMOUNT);
+  session.depositTx = txHash;
+  broadcastLeaderboard();
+  res.json({ ok: true, balance: session.balance });
+});
+
+app.post("/api/fine-by-username", async (req, res) => {
+  const { username, word } = req.body;
+  const entry = [...sessions.entries()].find(([,s]) => s.username === username);
+  if (!entry) return res.status(404).json({ error: "User not found" });
+  const [address, session] = entry;
+  if (session.balance < FINE_AMOUNT) return res.status(400).json({ error: "Insufficient vault balance" });
+  if (!hotWallet || !xrplClient) return res.status(500).json({ error: "Hot wallet not ready" });
+  try {
+    session.balance -= FINE_AMOUNT;
+    session.swearCount += 1;
+    const tx = {
+      TransactionType: "Payment",
+      Account: hotWallet.address,
+      Destination: CHARITY,
+      Amount: String(FINE_AMOUNT),
+      Memos: [{ Memo: { MemoData: Buffer.from("VML:" + username + ":" + word, "utf8").toString("hex").toUpperCase() } }],
+    };
+    const prepared = await xrplClient.autofill(tx);
+    const signed = hotWallet.sign(prepared);
+    const result = await xrplClient.submitAndWait(signed.tx_blob);
+    broadcastLeaderboard();
+    res.json({ ok: true, txHash: result.result.hash, balance: session.balance });
+  } catch(e) {
+    session.balance += FINE_AMOUNT;
+    session.swearCount -= 1;
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/leaderboard", (req, res) => {
   res.json(getLeaderboard());
 });
