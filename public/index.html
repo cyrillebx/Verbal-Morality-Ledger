@@ -320,8 +320,25 @@ function checkText(){
   document.getElementById("textInput").value="";
 }
 function detectSwears(text){
-  const words=text.toLowerCase().replace(/[^a-z\s]/g,"").split(/\s+/);
-  return SWEARS.filter(s=>words.includes(s));
+  const lower = text.toLowerCase();
+  // Check direct matches (strip punctuation for word boundary check)
+  const words = lower.replace(/[^a-z\s]/g,"").split(/\s+/);
+  const direct = SWEARS.filter(s => words.includes(s));
+  if(direct.length) return direct;
+
+  // Check masked versions e.g. "f***", "s**t", "b***h"
+  // Build pattern: first letter + asterisks matching word length
+  const masked = SWEARS.filter(s => {
+    if(s.length < 2) return false;
+    // e.g. "fuck" -> f*** or f**k or fu** etc.
+    const firstLetter = s[0];
+    const pattern = new RegExp(
+      firstLetter + "[*\u2217\u002a]{" + (s.length - 1) + "}",
+      "i"
+    );
+    return pattern.test(lower);
+  });
+  return masked;
 }
 async function triggerViolation(word){
   if(processing)return;
