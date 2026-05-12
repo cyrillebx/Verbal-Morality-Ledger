@@ -5,22 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Verbal Morality Ledger</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
-:root {
+@import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap");
+:root{
   --g:#00ff41;--gd:#00b32c;--gx:#003d0e;
   --a:#ffb300;--ad:#b37e00;
   --r:#ff2222;--rd:#7a0000;
   --bg:#040a04;--panel:#060e06;--panel2:#07120a;
   --border:#00ff4133;--borderb:#00ff4166;
   --dim:#00802099;
-  --mono:'Share Tech Mono','Courier New',monospace;
-  --disp:'Orbitron',monospace;
+  --mono:"Share Tech Mono","Courier New",monospace;
+  --disp:"Orbitron",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--g);font-family:var(--mono);min-height:100vh;overflow-x:hidden;}
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,.03) 2px,rgba(0,255,65,.03) 4px);pointer-events:none;z-index:999;}
-.screen{max-width:700px;margin:0 auto;padding:24px 20px 40px;}
+body::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,.03) 2px,rgba(0,255,65,.03) 4px);pointer-events:none;z-index:999;}
+.screen{max-width:760px;margin:0 auto;padding:24px 20px 40px;}
 .ticker{background:#000;border:1px solid var(--border);padding:6px 14px;font-size:10px;letter-spacing:2px;color:var(--a);overflow:hidden;margin-bottom:12px;}
 .ticker-inner{display:inline-block;animation:tick 26s linear infinite;white-space:nowrap;}
 @keyframes tick{0%{transform:translateX(100%);}100%{transform:translateX(-200%)}}
@@ -32,7 +33,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .blink{animation:blink 1.2s step-end infinite;}
 @keyframes blink{50%{opacity:0;}}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:2px;margin-bottom:12px;position:relative;overflow:hidden;}
-.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:.2;}
+.panel::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:.2;}
 .ph{background:var(--panel2);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;}
 .plabel{font-family:var(--disp);font-size:9px;letter-spacing:3px;color:var(--a);flex:1;text-transform:uppercase;}
 .pb{padding:16px;}
@@ -56,71 +57,100 @@ button:disabled:hover{background:transparent;color:var(--a);box-shadow:none;}
 .btn-g:hover{background:var(--g);color:#000;box-shadow:0 0 12px rgba(0,255,65,.4);}
 .btn-r{border-color:var(--r);color:var(--r);}
 .btn-r:hover{background:var(--r);color:#fff;box-shadow:0 0 12px rgba(255,34,34,.4);}
+
+/* STEPS */
+.step{display:none;}
+.step.active{display:block;}
+
+/* XAMAN */
 .xaman-area{display:flex;flex-direction:column;align-items:center;gap:12px;padding:4px 0;}
 .xaman-logo{font-family:var(--disp);font-size:1rem;font-weight:900;color:var(--a);letter-spacing:3px;}
 .xaman-desc{font-size:10px;letter-spacing:1px;color:var(--dim);text-align:center;line-height:1.9;}
 .qr-wrap{background:#fff;padding:10px;border-radius:2px;display:none;}
-.qr-wrap canvas,.qr-wrap img{display:block;}
 .deeplink{display:none;font-size:10px;color:var(--a);letter-spacing:1px;text-decoration:none;margin-top:4px;}
 .deeplink:hover{color:var(--g);}
-.wdata{display:none;margin-top:12px;padding:10px 12px;background:#000;border:1px solid var(--border);font-size:11px;line-height:2.1;}
-.wl{color:var(--a);letter-spacing:1px;}
-.wv{color:var(--g);}
-.wa{color:var(--gd);font-size:10px;word-break:break-all;}
-.sbar{margin-top:10px;font-size:10px;letter-spacing:1px;color:var(--dim);display:flex;align-items:center;gap:8px;}
-.charity-note{font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px;line-height:1.9;}
-.charity-note a{color:var(--g);text-decoration:none;}
-.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.sbox{background:#000;border:1px solid var(--border);padding:12px 10px;text-align:center;}
-.sv{display:block;font-family:var(--disp);font-size:2rem;font-weight:900;color:var(--g);text-shadow:0 0 15px rgba(0,255,65,.5);line-height:1;}
-.sv.am{color:var(--a);text-shadow:0 0 15px rgba(255,179,0,.5);}
-.sv.re{color:var(--r);text-shadow:0 0 15px rgba(255,34,34,.5);}
-.sl{display:block;font-size:8px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-top:4px;}
-.mtabs{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);}
-.mtab{flex:1;background:#000;border:none;border-right:1px solid var(--border);color:var(--dim);font-family:var(--disp);font-size:9px;letter-spacing:2px;padding:9px 8px;cursor:pointer;text-align:center;text-transform:uppercase;transition:all .2s;}
-.mtab:last-child{border-right:none;}
-.mtab:hover{color:var(--g);}
-.mtab.active{background:var(--panel2);color:var(--g);border-bottom:2px solid var(--g);}
+.step-status{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:8px;text-align:center;min-height:16px;}
+
+/* VAULT */
+.vault-info{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:12px;font-size:11px;line-height:2;}
+.vault-bal{font-family:var(--disp);font-size:1.8rem;font-weight:900;color:var(--g);text-shadow:0 0 15px rgba(0,255,65,.4);}
+.vault-low{color:var(--r);}
+
+/* USERS */
+.users-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px;}
+.user-card{background:#000;border:1px solid var(--border);padding:12px;text-align:center;cursor:default;}
+.user-card.active-user{border-color:var(--g);box-shadow:0 0 12px rgba(0,255,65,.2);}
+.user-name{font-family:var(--disp);font-size:.75rem;font-weight:700;color:var(--g);margin-bottom:4px;word-break:break-all;}
+.user-stats{font-size:9px;color:var(--dim);letter-spacing:1px;}
+.user-bal{font-size:10px;color:var(--a);margin-top:2px;}
+.add-user-btn{background:#000;border:1px dashed var(--border);padding:12px;text-align:center;cursor:pointer;color:var(--dim);font-size:10px;letter-spacing:2px;transition:all .2s;}
+.add-user-btn:hover{border-color:var(--g);color:var(--g);}
+
+/* MIC */
 .mic-area{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0;}
-.mic-btn{width:90px;height:90px;border-radius:50%;border:1px solid var(--borderb);background:#000;color:var(--dim);font-size:2rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;padding:0;letter-spacing:0;}
+.mic-btn{width:90px;height:90px;border-radius:50%;border:1px solid var(--borderb);background:#000;color:var(--dim);font-size:2rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;padding:0;}
 .mic-btn:hover{border-color:var(--g);color:var(--g);box-shadow:0 0 16px rgba(0,255,65,.2);background:transparent;}
 .mic-btn.listening{border-color:var(--r);color:var(--r);background:rgba(255,34,34,.05);animation:mp 1.2s infinite;box-shadow:none;}
 @keyframes mp{0%,100%{box-shadow:0 0 0 0 rgba(255,34,34,.4);}50%{box-shadow:0 0 0 12px rgba(255,34,34,0);}}
 .tbox{width:100%;min-height:36px;background:#000;border:1px solid var(--border);padding:8px 12px;font-size:12px;color:var(--dim);font-style:italic;letter-spacing:.5px;}
 .shit{color:var(--r);font-weight:bold;font-style:normal;text-transform:uppercase;}
-.valert{display:none;margin-top:12px;padding:10px 14px;background:rgba(255,34,34,.08);border:1px solid var(--r);color:var(--r);font-size:11px;letter-spacing:2px;text-transform:uppercase;text-align:center;font-family:var(--disp);font-weight:700;}
-.valert.show{display:block;animation:af .3s ease;}
-@keyframes af{from{opacity:0;}to{opacity:1;}}
-.txscroll{max-height:220px;overflow-y:auto;}
+
+/* TEXT TAB */
+.mtabs{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);}
+.mtab{flex:1;background:#000;border:none;border-right:1px solid var(--border);color:var(--dim);font-family:var(--disp);font-size:9px;letter-spacing:2px;padding:9px 8px;cursor:pointer;text-align:center;text-transform:uppercase;transition:all .2s;}
+.mtab:last-child{border-right:none;}
+.mtab.active{background:var(--panel2);color:var(--g);border-bottom:2px solid var(--g);}
+
+/* LEADERBOARD */
+.lb-row{display:grid;grid-template-columns:24px 1fr auto auto;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{color:var(--a);font-family:var(--disp);font-weight:700;}
+.lb-name{color:var(--g);}
+.lb-count{color:var(--r);font-family:var(--disp);}
+.lb-bal{color:var(--a);font-size:10px;}
+.lb-empty{padding:20px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:2px;}
+
+/* TX LOG */
+.txscroll{max-height:180px;overflow-y:auto;}
 .txscroll::-webkit-scrollbar{width:4px;}
 .txscroll::-webkit-scrollbar-track{background:#000;}
 .txscroll::-webkit-scrollbar-thumb{background:var(--borderb);}
-.txitem{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;}
+.txitem{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;}
 .txitem:last-child{border-bottom:none;}
+.txuser{color:var(--a);font-weight:bold;font-size:10px;}
 .txword{color:var(--r);letter-spacing:1px;font-weight:bold;}
 .txamt{color:var(--a);}
 .txtime{color:var(--dim);font-size:10px;}
-.txlink{color:var(--gd);font-size:10px;text-decoration:none;letter-spacing:1px;}
+.txlink{color:var(--gd);font-size:10px;text-decoration:none;}
 .txlink:hover{color:var(--g);}
 .txempty{padding:20px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:2px;}
-.wgrid{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;}
-.wchip{background:rgba(255,34,34,.07);border:1px solid rgba(255,34,34,.25);padding:3px 8px;font-size:10px;letter-spacing:1px;color:rgba(255,34,34,.7);}
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;}
+
+/* MODAL — WHO SAID IT */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
-.modal{background:var(--panel);border:1px solid var(--borderb);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
-.modal-title{font-family:var(--disp);font-size:.85rem;letter-spacing:3px;color:var(--r);margin-bottom:10px;}
-.modal-word{font-family:var(--disp);font-size:1.5rem;color:var(--r);margin:10px 0;}
-.modal-body{font-size:11px;letter-spacing:1px;color:var(--dim);line-height:2;margin-bottom:14px;}
-.modal-amt{color:var(--a);font-size:1rem;display:block;margin-bottom:12px;}
-.modal-qr{background:#fff;padding:8px;display:inline-block;margin:10px 0;}
-.modal-btns{display:flex;gap:8px;justify-content:center;margin-top:14px;}
+.modal{background:var(--panel);border:1px solid var(--borderb);padding:28px 24px;max-width:420px;width:95%;text-align:center;}
+.modal-title{font-family:var(--disp);font-size:.85rem;letter-spacing:3px;color:var(--r);margin-bottom:8px;}
+.modal-word{font-family:var(--disp);font-size:1.6rem;color:var(--r);margin:10px 0;}
+.modal-body{font-size:11px;letter-spacing:1px;color:var(--dim);line-height:2;margin-bottom:16px;}
+.accuse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:12px 0;}
+.accuse-btn{background:#000;border:1px solid var(--borderb);padding:12px 8px;cursor:pointer;text-align:center;transition:all .2s;border-radius:1px;}
+.accuse-btn:hover{border-color:var(--r);background:rgba(255,34,34,.08);color:var(--r);}
+.accuse-name{font-family:var(--disp);font-size:.7rem;color:var(--g);margin-bottom:4px;}
+.accuse-bal{font-size:9px;color:var(--dim);}
 .modal-status{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;min-height:16px;}
+.modal-btns{display:flex;gap:8px;justify-content:center;margin-top:14px;}
+
+/* VAULT MODAL */
+.vault-modal-qr{background:#fff;padding:8px;display:inline-block;margin:10px 0;}
+
 footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margin-top:24px;padding-top:16px;border-top:1px solid var(--border);line-height:2;}
 </style>
 </head>
 <body>
 <div class="screen">
+
 <div class="ticker"><span class="ticker-inner">VERBAL MORALITY STATUTE ACTIVE --- ALL INFRACTIONS LOGGED ON-CHAIN --- IN AID OF TOURETTE SCOTLAND SC021851 --- IGNORANCE OF THE LAW IS NO EXCUSE --- HAVE A NICE DAY</span></div>
+
 <div class="hdr">
   <div class="dept">DEPT. OF VERBAL COMPLIANCE - UNIT 7 - XRPL/TN-01</div>
   <div class="logo">Verbal Morality<br/>Ledger</div>
@@ -131,270 +161,446 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
     <span>|</span><span id="clk">--:--:--</span>
   </div>
 </div>
-<div class="panel">
-  <div class="ph"><div class="led" id="connLed"></div><div class="plabel">Citizen Wallet Interface</div></div>
-  <div class="pb">
-    <div class="xaman-area">
-      <div class="xaman-logo">SIGN IN WITH XAMAN</div>
-      <div class="xaman-desc">Scan the QR code with your Xaman wallet to authenticate.<br/>On mobile, tap the button to open Xaman directly.<br/><span style="color:var(--r)">Requires Testnet: Xaman Settings - Advanced - Developer Mode</span></div>
-      <button class="btn-g" id="signinBtn" onclick="startSignIn()">Generate Sign-In QR</button>
-      <div class="qr-wrap" id="signinQR"><div id="signinQRCode"></div></div>
-      <a class="deeplink" id="signinDeepLink" href="#" target="_blank">Open in Xaman App</a>
-      <div class="modal-status" id="signinStatus"></div>
-    </div>
-    <div class="wdata" id="walletInfo">
-      <div><span class="wl">ADDRESS  </span><span class="wa" id="walletAddr"></span></div>
-      <div><span class="wl">BALANCE  </span><span class="wv" id="walletBal">-</span><span style="color:var(--dim);font-size:10px"> XRP</span></div>
-    </div>
-    <div class="sbar"><div class="led" id="statusLed"></div><span id="statusText">AWAITING CITIZEN CREDENTIALS</span></div>
-    <div class="charity-note">FINES DONATED TO: <a href="https://www.tourettescotland.org" target="_blank">TOURETTE SCOTLAND</a> (SC021851) - TESTNET PLACEHOLDER<br/>CHARGE PER INFRACTION: <span style="color:var(--g)">0.1 XRP</span></div>
-  </div>
-</div>
-<div class="panel">
-  <div class="ph"><div class="led on"></div><div class="plabel">Infraction Counter - Session</div></div>
-  <div class="pb" style="padding-bottom:14px">
-    <div class="sgrid">
-      <div class="sbox"><span class="sv re" id="statCount">0</span><span class="sl">Violations</span></div>
-      <div class="sbox"><span class="sv am" id="statXRP">0.0</span><span class="sl">XRP Levied</span></div>
-      <div class="sbox"><span class="sv" id="statTx">0</span><span class="sl">TX Confirmed</span></div>
-    </div>
-  </div>
-</div>
-<div class="panel">
-  <div class="ph"><div class="led am" id="detLed"></div><div class="plabel">Linguistic Monitoring Unit</div></div>
-  <div class="pb">
-    <div class="mtabs">
-      <div class="mtab active" id="tab-mic" onclick="switchTab('mic')">[ Microphone ]</div>
-      <div class="mtab" id="tab-text" onclick="switchTab('text')">[ Text Input ]</div>
-    </div>
-    <div id="mode-mic" class="mic-area">
-      <button class="mic-btn" id="micBtn" onclick="toggleMic()">mic</button>
-      <div class="tbox" id="transcript">AWAITING AUDIO INPUT...</div>
-    </div>
-    <div id="mode-text" style="display:none">
-      <div class="fl">Input Statement for Analysis</div>
-      <div class="frow">
-        <input type="text" id="textInput" placeholder="Enter text for verbal compliance check..." onkeydown="if(event.key==='Enter')checkText()"/>
-        <button class="btn-g" onclick="checkText()">Analyze</button>
+
+<!-- STEP 1: SIGN IN -->
+<div class="step active" id="step-signin">
+  <div class="panel">
+    <div class="ph"><div class="led am"></div><div class="plabel">Step 1 — Citizen Authentication</div></div>
+    <div class="pb">
+      <div class="xaman-area">
+        <div class="xaman-logo">SIGN IN WITH XAMAN</div>
+        <div class="xaman-desc">Scan with Xaman to authenticate your wallet.<br/><span style="color:var(--r)">Enable Testnet: Xaman Settings - Advanced - Developer Mode</span></div>
+        <button class="btn-g" id="signinBtn" onclick="startSignIn()">Generate Sign-In QR</button>
+        <div class="qr-wrap" id="signinQR"><div id="signinQRCode"></div></div>
+        <a class="deeplink" id="signinDeepLink" href="#" target="_blank">Open in Xaman</a>
+        <div class="step-status" id="signinStatus"></div>
       </div>
     </div>
-    <div class="valert" id="valert"></div>
   </div>
 </div>
-<div class="panel">
-  <div class="ph"><div class="led on"></div><div class="plabel">Immutable Infraction Record</div></div>
-  <div class="txscroll"><div id="txList"><div class="txempty">NO VIOLATIONS ON RECORD. MAINTAIN VERBAL COMPLIANCE.</div></div></div>
+
+<!-- STEP 2: USERNAME -->
+<div class="step" id="step-username">
+  <div class="panel">
+    <div class="ph"><div class="led am"></div><div class="plabel">Step 2 — Choose Callsign</div></div>
+    <div class="pb">
+      <div class="fl">Enter your username</div>
+      <div class="frow">
+        <input type="text" id="usernameInput" placeholder="e.g. DevJohn, AngryPM..." maxlength="16"/>
+        <button class="btn-g" onclick="submitUsername()">Confirm</button>
+      </div>
+      <div class="step-status" id="usernameStatus"></div>
+    </div>
+  </div>
 </div>
-<div class="panel">
-  <div class="ph"><div class="led re"></div><div class="plabel">Prohibited Lexicon - Statute VII</div></div>
-  <div class="pb"><div class="wgrid" id="wordGrid"></div></div>
+
+<!-- STEP 3: DEPOSIT -->
+<div class="step" id="step-deposit">
+  <div class="panel">
+    <div class="ph"><div class="led am"></div><div class="plabel">Step 3 — Fund Your Vault</div></div>
+    <div class="pb">
+      <div class="xaman-area">
+        <div class="xaman-desc">Deposit <span style="color:var(--g)">5 XRP</span> into the vault.<br/>Fines will be auto-deducted — no approval needed per swear.<br/>Remaining balance returned when you leave.</div>
+        <button class="btn-g" id="depositBtn" onclick="startDeposit()">Deposit 5 XRP via Xaman</button>
+        <div class="qr-wrap" id="depositQR"><div id="depositQRCode"></div></div>
+        <a class="deeplink" id="depositDeepLink" href="#" target="_blank">Open in Xaman</a>
+        <div class="step-status" id="depositStatus"></div>
+      </div>
+    </div>
+  </div>
 </div>
-<footer>VERBAL MORALITY LEDGER v2.032 - XRPL TESTNET ENFORCEMENT DIVISION<br/>IN AID OF TOURETTE SCOTLAND - ALL TRANSACTIONS IMMUTABLE - HAVE A NICE DAY</footer>
+
+<!-- MAIN APP -->
+<div class="step" id="step-main">
+
+  <!-- USERS PANEL -->
+  <div class="panel">
+    <div class="ph"><div class="led on" id="usersLed"></div><div class="plabel">Active Citizens</div><button class="btn-g" style="padding:4px 10px;font-size:8px" onclick="addAnotherUser()">+ Add User</button></div>
+    <div class="pb">
+      <div class="users-grid" id="usersGrid"></div>
+    </div>
+  </div>
+
+  <!-- MONITORING -->
+  <div class="panel">
+    <div class="ph"><div class="led am"></div><div class="plabel">Linguistic Monitoring Unit</div></div>
+    <div class="pb">
+      <div class="mtabs">
+        <div class="mtab active" id="tab-mic" onclick="switchTab('mic')">[ Microphone ]</div>
+        <div class="mtab" id="tab-text" onclick="switchTab('text')">[ Text Input ]</div>
+      </div>
+      <div id="mode-mic" class="mic-area">
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()">mic</button>
+        <div class="tbox" id="transcript">AWAITING AUDIO INPUT...</div>
+      </div>
+      <div id="mode-text" style="display:none">
+        <div class="fl">Input Statement for Analysis</div>
+        <div class="frow">
+          <input type="text" id="textInput" placeholder="Type something..." onkeydown="if(event.key==='Enter')checkText()"/>
+          <button class="btn-g" onclick="checkText()">Analyze</button>
+        </div>
+      </div>
+      <div id="valert" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,34,34,.08);border:1px solid var(--r);color:var(--r);font-size:11px;letter-spacing:2px;text-transform:uppercase;text-align:center;font-family:var(--disp);font-weight:700;"></div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div class="panel">
+    <div class="ph"><div class="led on"></div><div class="plabel">Infraction Leaderboard</div></div>
+    <div id="leaderboard"><div class="lb-empty">NO VIOLATIONS YET. KEEP IT CLEAN.</div></div>
+  </div>
+
+  <!-- TX LOG -->
+  <div class="panel">
+    <div class="ph"><div class="led on"></div><div class="plabel">Immutable Infraction Record</div></div>
+    <div class="txscroll"><div id="txList"><div class="txempty">NO VIOLATIONS ON RECORD.</div></div></div>
+  </div>
+
 </div>
-<div class="modal-bg" id="modalBg">
+
+<footer>VERBAL MORALITY LEDGER v2.032 - XRPL TESTNET - IN AID OF TOURETTE SCOTLAND - HAVE A NICE DAY</footer>
+</div>
+
+<!-- WHO SAID IT MODAL -->
+<div class="modal-bg" id="accuseModal">
   <div class="modal">
-    <div class="modal-title">VERBAL VIOLATION DETECTED</div>
-    <div class="modal-body">Prohibited utterance on record:</div>
-    <div class="modal-word" id="mWord"></div>
-    <span class="modal-amt">Fine: 0.1 XRP - Tourette Scotland</span>
-    <div class="modal-body">Scan with Xaman to approve:</div>
-    <div class="modal-qr" id="modalQRWrap"><div id="modalQRCode"></div></div>
-    <a class="deeplink" id="modalDeepLink" href="#" target="_blank" style="display:block;margin:6px 0;">Open in Xaman</a>
-    <div class="modal-status" id="modalStatus">AWAITING YOUR APPROVAL IN XAMAN...</div>
-    <div class="modal-btns"><button class="btn-r" onclick="dismissModal()">Dismiss</button></div>
+    <div class="modal-title">WHO SAID THAT?</div>
+    <div class="modal-word" id="accuseWord"></div>
+    <div class="modal-body">Select the offender. 0.1 XRP will be auto-deducted from their vault.</div>
+    <div class="accuse-grid" id="accuseGrid"></div>
+    <div class="modal-status" id="accuseStatus"></div>
+    <div class="modal-btns">
+      <button onclick="dismissAccuse()">False Alarm</button>
+    </div>
   </div>
 </div>
+
 <script>
 const API = "";
-const SWEARS = ["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","shitcunt","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","ratfuck","shitstain","twatwaffle","bumfuck","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","enculé","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoiré","fils de chienne","chienne","garce","trainée","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tête de noeud","tête de con","mange-merde","pétasse","tapette","pédé","fiotte","baltringue","bouffon","clochard","déchet","vermine","parasite","lope","lopette","pd","fdp","ntm","va te faire enculer","nique ta mère","nique ta race","fils de pute","sale race","bâtard","espèce de merde","pauvre con","gros con","sale con","petit con"];
-let walletAddr=null,userToken=null,swearCount=0,xrpLost=0,txCount=0;
-let recognition=null,isListening=false,processing=false;
-document.addEventListener("DOMContentLoaded",()=>{
-  renderWords();initSpeech();
-  setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
-  const params=new URLSearchParams(location.search);
-  const paidId=params.get("paid");
-  if(paidId)handleReturnFromXaman(paidId);
-});
-function renderWords(){document.getElementById("wordGrid").innerHTML=SWEARS.map(w=>`<span class="wchip">${w}</span>`).join("");}
-async function startSignIn(){
-  const btn=document.getElementById("signinBtn");
-  btn.disabled=true;btn.textContent="Generating...";
-  setSigninStatus("CREATING SIGN-IN REQUEST...");
-  try{
-    const res=await fetch(`${API}/api/signin`,{method:"POST"});
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    const qrEl=document.getElementById("signinQRCode");
-    qrEl.innerHTML="";
-    new QRCode(qrEl,{text:data.deeplink,width:160,height:160,colorDark:"#000",colorLight:"#fff"});
-    document.getElementById("signinQR").style.display="block";
-    const dl=document.getElementById("signinDeepLink");
-    dl.href=data.deeplink;dl.style.display="block";
-    setSigninStatus("SCAN QR OR OPEN XAMAN - WAITING...");
-    btn.textContent="Waiting for Xaman...";
-    const sse=new EventSource(`${API}/api/subscribe/${data.uuid}`);
-    sse.onmessage=(e)=>{
-      const msg=JSON.parse(e.data);
-      if(msg.type==="opened")setSigninStatus("XAMAN OPENED - PLEASE SIGN...");
-      if(msg.type==="signed"){
-        sse.close();
-        if(msg.signed&&msg.address){onSignedIn(msg.address);}
-        else{setSigninStatus("SIGN-IN REJECTED - TRY AGAIN");btn.disabled=false;btn.textContent="Generate Sign-In QR";}
-      }
-    };
-    sse.onerror=()=>{sse.close();setSigninStatus("CONNECTION ERROR - RETRY");btn.disabled=false;btn.textContent="Generate Sign-In QR";};
-  }catch(err){
-    setSigninStatus("ERROR: "+err.message.toUpperCase());
-    btn.disabled=false;btn.textContent="Generate Sign-In QR";
+const SWEARS = ["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","shitcunt","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","ratfuck","shitstain","twatwaffle","bumfuck","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","encule","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoire","fils de chienne","chienne","garce","trainee","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tete de noeud","tete de con","mange-merde","petasse","tapette","pede","fiotte","baltringue","bouffon","clochard","dechet","vermine","parasite","lope","lopette","fdp","ntm","batar","sale race","pauvre con","gros con","sale con","petit con"];
+
+// STATE
+let myAddress = null, myUsername = null;
+let recognition = null, isListening = false, processing = false;
+let pendingWord = null;
+const socket = io();
+
+// CLOCK
+setInterval(() => {
+  document.getElementById("clk").textContent = new Date().toLocaleTimeString("en-GB",{hour12:false});
+}, 1000);
+
+// SOCKET
+socket.on("leaderboard", renderLeaderboard);
+
+// ── STEPS ─────────────────────────────────────────────────
+function showStep(id) {
+  document.querySelectorAll(".step").forEach(s => s.classList.remove("active"));
+  document.getElementById("step-"+id).classList.add("active");
+}
+
+// ── SIGN IN ───────────────────────────────────────────────
+async function startSignIn() {
+  const btn = document.getElementById("signinBtn");
+  btn.disabled = true; btn.textContent = "Generating...";
+  setStatus("signinStatus", "CREATING SIGN-IN REQUEST...");
+  try {
+    const res = await fetch("/api/signin", {method:"POST"});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showQR("signinQRCode", "signinQR", "signinDeepLink", data.deeplink);
+    setStatus("signinStatus", "SCAN QR OR OPEN XAMAN...");
+    btn.textContent = "Waiting...";
+    // Poll for result every 2 seconds
+    setStatus("signinStatus", "WAITING FOR XAMAN APPROVAL...");
+    const poll = setInterval(async () => {
+      try {
+        const pr = await fetch(`/api/payload/${data.uuid}`);
+        const pd = await pr.json();
+        if (pd?.meta?.resolved) {
+          clearInterval(poll);
+          if (pd.meta.signed && pd.response?.account) {
+            myAddress = pd.response.account;
+            setStatus("signinStatus", "AUTHENTICATED - CHOOSE USERNAME");
+            showStep("username");
+          } else {
+            setStatus("signinStatus", "REJECTED - TRY AGAIN");
+            btn.disabled = false; btn.textContent = "Generate Sign-In QR";
+          }
+        }
+      } catch(e) {}
+    }, 2000);
+  } catch(e) {
+    setStatus("signinStatus", "ERROR: "+e.message);
+    btn.disabled=false; btn.textContent="Generate Sign-In QR";
   }
 }
-function setSigninStatus(msg){document.getElementById("signinStatus").textContent=msg;}
-async function onSignedIn(address){
-  walletAddr=address;
-  document.getElementById("walletAddr").textContent=address;
-  document.getElementById("walletBal").textContent="Loading...";
-  document.getElementById("walletInfo").style.display="block";
+
+// ── USERNAME ──────────────────────────────────────────────
+async function submitUsername() {
+  const val = document.getElementById("usernameInput").value.trim();
+  if (!val) return;
+  try {
+    const res = await fetch("/api/username", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({address: myAddress, username: val})
+    });
+    const data = await res.json();
+    if (data.error) { setStatus("usernameStatus", "ERROR: "+data.error.toUpperCase()); return; }
+    myUsername = val;
+    showStep("deposit");
+  } catch(e) {
+    setStatus("usernameStatus", "ERROR: "+e.message);
+  }
+}
+
+// ── DEPOSIT ───────────────────────────────────────────────
+async function startDeposit() {
+  const btn = document.getElementById("depositBtn");
+  btn.disabled=true; btn.textContent="Generating...";
+  setStatus("depositStatus","CREATING DEPOSIT REQUEST...");
+  try {
+    const res = await fetch("/api/deposit", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({address: myAddress})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showQR("depositQRCode","depositQR","depositDeepLink",data.deeplink);
+    setStatus("depositStatus","SCAN QR — APPROVE 5 XRP DEPOSIT IN XAMAN...");
+    btn.textContent="Waiting for deposit...";
+    // Poll for deposit result
+    setStatus("depositStatus","WAITING FOR XAMAN APPROVAL...");
+    const poll = setInterval(async () => {
+      try {
+        const pr = await fetch(`/api/payload/${data.uuid}`);
+        const pd = await pr.json();
+        if (pd?.meta?.resolved) {
+          clearInterval(poll);
+          if (pd.meta.signed) {
+            // Notify server of confirmed deposit
+            await fetch("/api/deposit-confirm", {
+              method: "POST",
+              headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({address: myAddress, txHash: pd.response?.txid})
+            });
+            setStatus("depositStatus","VAULT FUNDED! ENTERING SESSION...");
+            setTimeout(() => {
+              showStep("main");
+              initSpeech();
+              renderUsersGrid();
+            }, 1000);
+          } else {
+            setStatus("depositStatus","DEPOSIT REJECTED - TRY AGAIN");
+            btn.disabled=false; btn.textContent="Deposit 5 XRP via Xaman";
+          }
+        }
+      } catch(e) {}
+    }, 2000);
+  } catch(e) {
+    setStatus("depositStatus","ERROR: "+e.message);
+    btn.disabled=false; btn.textContent="Deposit 5 XRP via Xaman";
+  }
+}
+
+// ── ADD ANOTHER USER ──────────────────────────────────────
+function addAnotherUser() {
+  // Reset sign-in flow for new user
+  myAddress = null; myUsername = null;
   document.getElementById("signinQR").style.display="none";
   document.getElementById("signinDeepLink").style.display="none";
-  document.getElementById("connLed").className="led on";
-  document.getElementById("detLed").className="led on";
-  setStatus("CITIZEN AUTHENTICATED - MONITORING ACTIVE",true);
-  setSigninStatus("SIGNED IN AS "+address.slice(0,8)+"...");
-  try{
-    const r=await fetch(`${API}/api/balance/${address}`);
-    const d=await r.json();
-    document.getElementById("walletBal").textContent=d.balance??"--";
-  }catch{document.getElementById("walletBal").textContent="--";}
+  document.getElementById("signinStatus").textContent="";
+  document.getElementById("signinBtn").disabled=false;
+  document.getElementById("signinBtn").textContent="Generate Sign-In QR";
+  document.getElementById("usernameInput").value="";
+  showStep("signin");
 }
-function setStatus(msg,ok){
-  document.getElementById("statusText").textContent=msg;
-  const led=document.getElementById("statusLed");
-  led.className="led"+(ok===true?" on":ok===false?" re":" am");
+
+// ── USERS GRID ────────────────────────────────────────────
+async function renderUsersGrid() {
+  const lb = await fetch("/api/leaderboard").then(r=>r.json());
+  const grid = document.getElementById("usersGrid");
+  grid.innerHTML = lb.map(u => `
+    <div class="user-card">
+      <div class="user-name">${u.username}</div>
+      <div class="user-stats">${u.swearCount} violations</div>
+      <div class="user-bal">${(u.balance/1000000).toFixed(1)} XRP left</div>
+    </div>
+  `).join("");
 }
-function switchTab(t){
+
+// ── LEADERBOARD ───────────────────────────────────────────
+function renderLeaderboard(data) {
+  renderUsersGrid();
+  const el = document.getElementById("leaderboard");
+  if (!data.length) { el.innerHTML='<div class="lb-empty">NO VIOLATIONS YET. KEEP IT CLEAN.</div>'; return; }
+  el.innerHTML = data.map((u,i) => `
+    <div class="lb-row">
+      <span class="lb-rank">#${i+1}</span>
+      <span class="lb-name">${u.username}</span>
+      <span class="lb-count">${u.swearCount} swears</span>
+      <span class="lb-bal">${(u.balance/1000000).toFixed(1)} XRP</span>
+    </div>
+  `).join("");
+}
+
+// ── ACCUSE MODAL ──────────────────────────────────────────
+async function showAccuseModal(word) {
+  pendingWord = word;
+  document.getElementById("accuseWord").textContent = `[ ${word.toUpperCase()} ]`;
+  document.getElementById("accuseStatus").textContent = "";
+  const lb = await fetch("/api/leaderboard").then(r=>r.json());
+  const grid = document.getElementById("accuseGrid");
+  grid.innerHTML = lb.map(u => `
+    <div class="accuse-btn" onclick="accuseUser('${u.address.replace("...","")}', '${u.username}')">
+      <div class="accuse-name">${u.username}</div>
+      <div class="accuse-bal">${(u.balance/1000000).toFixed(1)} XRP in vault</div>
+    </div>
+  `).join("");
+  document.getElementById("accuseModal").classList.add("show");
+}
+
+async function accuseUser(addressPrefix, username) {
+  if (!pendingWord) return;
+  document.getElementById("accuseStatus").textContent = `CHARGING ${username.toUpperCase()}...`;
+  document.querySelectorAll(".accuse-btn").forEach(b => b.style.pointerEvents="none");
+
+  // Find full address from leaderboard
+  const lb = await fetch("/api/leaderboard").then(r=>r.json());
+  const user = lb.find(u => u.username === username);
+  if (!user) { document.getElementById("accuseStatus").textContent="USER NOT FOUND"; return; }
+
+  // We stored full address in session — use username to match
+  try {
+    const res = await fetch("/api/fine-by-username", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username, word: pendingWord})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    document.getElementById("accuseStatus").textContent = `CHARGED! 0.1 XRP DEDUCTED FROM ${username.toUpperCase()}`;
+    addTx(username, pendingWord, data.txHash);
+    setTimeout(dismissAccuse, 1500);
+  } catch(e) {
+    document.getElementById("accuseStatus").textContent = "ERROR: "+e.message.toUpperCase();
+    document.querySelectorAll(".accuse-btn").forEach(b => b.style.pointerEvents="auto");
+  }
+}
+
+function dismissAccuse() {
+  document.getElementById("accuseModal").classList.remove("show");
+  pendingWord = null;
+  processing = false;
+}
+
+// ── SPEECH ────────────────────────────────────────────────
+function initSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById("transcript").textContent="SPEECH API UNAVAILABLE - USE CHROME";
+    document.getElementById("micBtn").disabled=true; return;
+  }
+  recognition = new SR();
+  recognition.continuous=true; recognition.interimResults=true; recognition.lang="en-US";
+  recognition.onresult = e => {
+    let interim="", final="";
+    for (let i=e.resultIndex;i<e.results.length;i++) {
+      const t=e.results[i][0].transcript;
+      e.results[i].isFinal?final+=t:interim+=t;
+    }
+    const txt=(final||interim).trim();
+    const found=detectSwears(txt);
+    if (found.length) {
+      let hi=txt;
+      found.forEach(s=>{hi=hi.replace(new RegExp(`\\b${s}\\b`,"gi"),`<span class="shit">[${s.toUpperCase()}]</span>`);});
+      document.getElementById("transcript").innerHTML=`>> ${hi}`;
+      if (final && !processing) { processing=true; showAccuseModal(found[0]); }
+    } else {
+      document.getElementById("transcript").textContent=txt?`>> ${txt}`:"MONITORING...";
+    }
+  };
+  recognition.onerror = e => {
+    if (e.error==="not-allowed") { document.getElementById("transcript").textContent="MIC ACCESS DENIED"; stopMic(); }
+    else if (e.error!=="no-speech"&&e.error!=="aborted") console.warn("Speech error:",e.error);
+  };
+  recognition.onend = () => { if(isListening) try{recognition.start();}catch(e){} };
+}
+
+async function toggleMic() {
+  if (isListening) { stopMic(); return; }
+  try { await navigator.mediaDevices.getUserMedia({audio:true}); startMic(); }
+  catch(e) { document.getElementById("transcript").textContent="MIC ACCESS DENIED - CHECK BROWSER SETTINGS"; }
+}
+function startMic() {
+  isListening=true; try{recognition.start();}catch(e){}
+  document.getElementById("micBtn").classList.add("listening");
+  document.getElementById("micBtn").textContent="stop";
+  document.getElementById("transcript").textContent="MONITORING...";
+}
+function stopMic() {
+  isListening=false; try{recognition.stop();}catch(e){}
+  document.getElementById("micBtn").classList.remove("listening");
+  document.getElementById("micBtn").textContent="mic";
+  document.getElementById("transcript").textContent="AWAITING AUDIO INPUT...";
+}
+
+function checkText() {
+  const val=document.getElementById("textInput").value.trim();
+  if(!val)return;
+  const found=detectSwears(val);
+  if(found.length&&!processing){processing=true;showAccuseModal(found[0]);}
+  document.getElementById("textInput").value="";
+}
+
+function detectSwears(text) {
+  const lower=text.toLowerCase();
+  const words=lower.replace(/[^a-z\s]/g,"").split(/\s+/);
+  const direct=SWEARS.filter(s=>words.includes(s));
+  if(direct.length)return direct;
+  const masked=SWEARS.filter(s=>{
+    if(s.length<2)return false;
+    return new RegExp(s[0]+"[*\u2217]{" +(s.length-1)+"}","i").test(lower);
+  });
+  return masked;
+}
+
+function switchTab(t) {
   document.getElementById("mode-mic").style.display=t==="mic"?"flex":"none";
   document.getElementById("mode-text").style.display=t==="text"?"block":"none";
   document.getElementById("tab-mic").className="mtab"+(t==="mic"?" active":"");
   document.getElementById("tab-text").className="mtab"+(t==="text"?" active":"");
   if(t!=="mic"&&isListening)stopMic();
 }
-function initSpeech(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){document.getElementById("transcript").textContent="SPEECH API UNAVAILABLE - USE CHROME";document.getElementById("micBtn").disabled=true;return;}
-  recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang="en-US";
-  recognition.onresult=(e)=>{
-    let interim="",final="";
-    for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?final+=t:interim+=t;}
-    const txt=(final||interim).trim();
-    const found=detectSwears(txt);
-    if(found.length){
-      let hi=txt;
-      found.forEach(s=>{hi=hi.replace(new RegExp(`\\b${s}\\b`,"gi"),`<span class="shit">[${s.toUpperCase()}]</span>`);});
-      document.getElementById("transcript").innerHTML=`>> ${hi}`;
-      if(final&&!processing)triggerViolation(found[0]);
-    }else{document.getElementById("transcript").textContent=txt?`>> ${txt}`:"MONITORING...";}
-  };
-  recognition.onerror=e=>{if(e.error!=="no-speech")setStatus("MIC ERROR: "+e.error.toUpperCase(),false);};
-  recognition.onend=()=>{if(isListening)recognition.start();};
-}
-function toggleMic(){isListening?stopMic():startMic();}
-function startMic(){
-  if(!recognition)return;
-  isListening=true;recognition.start();
-  document.getElementById("micBtn").classList.add("listening");
-  document.getElementById("micBtn").textContent="stop";
-  document.getElementById("transcript").textContent="MONITORING...";
-}
-function stopMic(){
-  isListening=false;recognition.stop();
-  document.getElementById("micBtn").classList.remove("listening");
-  document.getElementById("micBtn").textContent="mic";
-  document.getElementById("transcript").textContent="AWAITING AUDIO INPUT...";
-}
-function checkText(){
-  const val=document.getElementById("textInput").value.trim();
-  if(!val)return;
-  const found=detectSwears(val);
-  found.length?triggerViolation(found[0]):showAlert("STATEMENT COMPLIANT - NO INFRACTIONS DETECTED");
-  document.getElementById("textInput").value="";
-}
-function detectSwears(text){
-  const lower = text.toLowerCase();
-  // Check direct matches (strip punctuation for word boundary check)
-  const words = lower.replace(/[^a-z\s]/g,"").split(/\s+/);
-  const direct = SWEARS.filter(s => words.includes(s));
-  if(direct.length) return direct;
 
-  // Check masked versions e.g. "f***", "s**t", "b***h"
-  // Build pattern: first letter + asterisks matching word length
-  const masked = SWEARS.filter(s => {
-    if(s.length < 2) return false;
-    // e.g. "fuck" -> f*** or f**k or fu** etc.
-    const firstLetter = s[0];
-    const pattern = new RegExp(
-      firstLetter + "[*\u2217\u002a]{" + (s.length - 1) + "}",
-      "i"
-    );
-    return pattern.test(lower);
-  });
-  return masked;
-}
-async function triggerViolation(word){
-  if(processing)return;
-  processing=true;swearCount++;
-  document.getElementById("statCount").textContent=swearCount;
-  document.getElementById("mWord").textContent=`[ ${word.toUpperCase()} ]`;
-  document.getElementById("modalQRCode").innerHTML="";
-  document.getElementById("modalStatus").textContent="CREATING XAMAN PAYMENT REQUEST...";
-  document.getElementById("modalBg").classList.add("show");
-  try{
-    const res=await fetch(`${API}/api/pay`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({word,userToken})});
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    new QRCode(document.getElementById("modalQRCode"),{text:data.deeplink,width:150,height:150,colorDark:"#000",colorLight:"#fff"});
-    const dl=document.getElementById("modalDeepLink");dl.href=data.deeplink;dl.style.display="block";
-    document.getElementById("modalStatus").textContent="SCAN OR OPEN XAMAN - AWAITING APPROVAL...";
-    const sse=new EventSource(`${API}/api/subscribe/${data.uuid}`);
-    sse.onmessage=(e)=>{
-      const msg=JSON.parse(e.data);
-      if(msg.type==="opened")document.getElementById("modalStatus").textContent="XAMAN OPENED - PLEASE APPROVE...";
-      if(msg.type==="signed"){sse.close();if(msg.signed){onPaymentConfirmed(word,msg.txHash);}else{document.getElementById("modalStatus").textContent="PAYMENT REJECTED";addTx(word,null,"REJECTED");setTimeout(dismissModal,2000);}}
-    };
-    sse.onerror=()=>{sse.close();};
-  }catch(err){
-    document.getElementById("modalStatus").textContent="ERROR: "+err.message.slice(0,60).toUpperCase();
-    addTx(word,null,"ERROR");setTimeout(()=>{processing=false;},3000);
-  }
-}
-function onPaymentConfirmed(word,txHash){
-  xrpLost=+(xrpLost+0.1).toFixed(1);txCount++;
-  document.getElementById("statXRP").textContent=xrpLost.toFixed(1);
-  document.getElementById("statTx").textContent=txCount;
-  document.getElementById("modalStatus").textContent="FINE CONFIRMED ON-CHAIN";
-  showAlert(`FINE LEVIED - 0.1 XRP DEDUCTED FOR [${word.toUpperCase()}]`);
-  addTx(word,txHash,"CONFIRMED");setTimeout(dismissModal,2500);
-}
-function dismissModal(){document.getElementById("modalBg").classList.remove("show");processing=false;}
-async function handleReturnFromXaman(uuid){
-  try{
-    const r=await fetch(`${API}/api/payload/${uuid}`);
-    const d=await r.json();
-    if(d?.meta?.signed&&d?.response?.txid){const word=d?.custom_meta?.blob?.word||"unknown";onPaymentConfirmed(word,d.response.txid);history.replaceState({},"","/");}
-  }catch(_){}
-}
-function showAlert(msg){
-  const el=document.getElementById("valert");el.textContent="! "+msg;el.className="valert show";
-  setTimeout(()=>{el.className="valert";},5000);
-}
-function addTx(word,hash,status){
+// ── TX LOG ────────────────────────────────────────────────
+function addTx(username, word, hash) {
   const list=document.getElementById("txList");
-  const empty=list.querySelector(".txempty");if(empty)empty.remove();
+  const empty=list.querySelector(".txempty");
+  if(empty)empty.remove();
   const t=new Date().toLocaleTimeString("en-GB",{hour12:false});
-  const item=document.createElement("div");item.className="txitem";
-  item.innerHTML=`<span class="txword">[${word.toUpperCase()}]</span><span class="txamt">-0.1 XRP</span><span class="txtime">${t}</span>${hash?`<a class="txlink" href="https://testnet.xrpl.org/transactions/${hash}" target="_blank">VIEW</a>`:`<span class="txlink" style="color:var(--ad)">${status}</span>`}`;
+  const item=document.createElement("div");
+  item.className="txitem";
+  item.innerHTML=`
+    <span class="txuser">${username}</span>
+    <span class="txword">[${word.toUpperCase()}]</span>
+    <span class="txamt">-0.1 XRP</span>
+    <span class="txtime">${t}</span>
+    ${hash?`<a class="txlink" href="https://testnet.xrpl.org/transactions/${hash}" target="_blank">VIEW</a>`:`<span class="txlink" style="color:var(--ad)">PENDING</span>`}
+  `;
   list.prepend(item);
 }
+
+// ── HELPERS ───────────────────────────────────────────────
+function showQR(elId, wrapId, linkId, url) {
+  const el=document.getElementById(elId);
+  el.innerHTML="";
+  new QRCode(el,{text:url,width:160,height:160,colorDark:"#000",colorLight:"#fff"});
+  document.getElementById(wrapId).style.display="block";
+  const dl=document.getElementById(linkId);
+  dl.href=url; dl.style.display="block";
+}
+
+function setStatus(id, msg) { document.getElementById(id).textContent=msg; }
 </script>
 </body>
 </html>
