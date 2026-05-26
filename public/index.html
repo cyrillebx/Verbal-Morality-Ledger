@@ -261,11 +261,11 @@ function initWalletManager(){
 function showWalletPicker(){document.getElementById("btnConnect").style.display="none";document.getElementById("walletPicker").style.display="flex";}
 function resetSigninBtns(){document.getElementById("btnConnect").style.display="";document.getElementById("btnConnect").disabled=false;document.getElementById("walletPicker").style.display="none";["btnXaman","btnCrossmark","btnGemWallet"].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=id.replace("btn","");}});}
 async function connectXaman(){
-  initWalletManager();
   document.getElementById("btnXaman").disabled=true;
   document.getElementById("btnXaman").textContent="Connecting...";
   setEl("signinStatus","GENERATING XAMAN QR...");
   try{
+    initWalletManager();
     const{xamanApiKey}=await fetch("/api/config").then(r=>r.json());
     await walletManager.connect("xaman",{
       apiKey:xamanApiKey,
@@ -279,23 +279,21 @@ async function connectXaman(){
         const dl=document.getElementById("signinDeepLink");dl.href=link;dl.style.display="block";
       }
     });
-  }catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
+  }catch(e){setEl("signinStatus","ERROR: "+(e?.message||String(e)).toUpperCase());resetSigninBtns();}
 }
 async function connectCrossmark(){
-  initWalletManager();
   document.getElementById("btnCrossmark").disabled=true;
   document.getElementById("btnCrossmark").textContent="Connecting...";
   setEl("signinStatus","APPROVE IN CROSSMARK EXTENSION...");
-  try{await walletManager.connect("crossmark",{network:"testnet"});}
-  catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
+  try{initWalletManager();await walletManager.connect("crossmark",{network:"testnet"});}
+  catch(e){setEl("signinStatus","ERROR: "+(e?.message||String(e)).toUpperCase());resetSigninBtns();}
 }
 async function connectGemWallet(){
-  initWalletManager();
   document.getElementById("btnGemWallet").disabled=true;
   document.getElementById("btnGemWallet").textContent="Connecting...";
   setEl("signinStatus","APPROVE IN GEMWALLET EXTENSION...");
-  try{await walletManager.connect("gemwallet",{network:"testnet"});}
-  catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
+  try{initWalletManager();await walletManager.connect("gemwallet",{network:"testnet"});}
+  catch(e){setEl("signinStatus","ERROR: "+(e?.message||String(e)).toUpperCase());resetSigninBtns();}
 }
 async function submitUsername(){
   const val=document.getElementById("usernameInput").value.trim();
