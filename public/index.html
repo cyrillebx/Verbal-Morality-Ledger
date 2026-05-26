@@ -230,20 +230,18 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 <script>
 const SWEARS=["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","shitstain","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","encule","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoire","fils de chienne","chienne","garce","trainee","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tete de noeud","tete de con","mange-merde","petasse","tapette","pede","fiotte","baltringue","bouffon","dechet","vermine","parasite","lope","lopette","fdp","ntm","batar","sale race","pauvre con","gros con","sale con","petit con"];
 let myAddress=null,myUsername=null,walletManager=null,recognitions=[],isListening=false,processing=false,pendingWord=null;
-let audioCtx=null,vmsBuffer=null;
-async function initAudio(){
-  try{
-    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==="suspended")await audioCtx.resume();
-    const ab=await(await fetch("/audio/vms.mp3")).arrayBuffer();
-    vmsBuffer=await audioCtx.decodeAudioData(ab);
-  }catch(e){}
-}
+// Unlock audio on first user gesture anywhere on page (synchronous click handler = guaranteed gesture context)
+document.addEventListener("click",function vmsUnlock(){
+  const a=document.getElementById("vms-audio");
+  if(a){a.play().then(()=>{a.pause();a.currentTime=0;}).catch(()=>{});}
+  document.removeEventListener("click",vmsUnlock);
+},{once:true,capture:true});
 function playVMS(){
-  if(!audioCtx||!vmsBuffer)return;
-  if(audioCtx.state==="suspended")audioCtx.resume();
-  const src=audioCtx.createBufferSource();
-  src.buffer=vmsBuffer;src.connect(audioCtx.destination);src.start(0);
+  try{
+    const a=document.getElementById("vms-audio");
+    a.currentTime=0;
+    a.play().catch(e=>console.error("playVMS:",e.message));
+  }catch(e){console.error("playVMS:",e);}
 }
 const socket=io();
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
@@ -425,7 +423,6 @@ async function toggleMic(){if(isListening){stopMic();return;}try{await navigator
 function startMic(){
   isListening=true;
   recognitions.forEach(r=>{try{r.start();}catch(e){}});
-  initAudio();
   document.getElementById("micBtn").classList.add("listening");
   document.getElementById("micBtn").textContent="stop";
   document.getElementById("transcript").textContent="MONITORING...";
