@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync } from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -49,7 +50,22 @@ setInterval(async () => {
 }, 30000);
 
 // Sessions: address -> { username, balance (drops), swearCount, depositTx }
-const sessions = new Map();
+const SESSIONS_FILE = path.join(__dirname, "sessions.json");
+
+function loadSessions() {
+  try {
+    const raw = readFileSync(SESSIONS_FILE, "utf8");
+    return new Map(Object.entries(JSON.parse(raw)));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveSessions() {
+  writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions)), "utf8");
+}
+
+const sessions = loadSessions();
 const sseClients = new Map();
 
 // ── PING ─────────────────────────────────────────────────
@@ -317,6 +333,7 @@ function getLeaderboard() {
 }
 
 function broadcastLeaderboard() {
+  saveSessions();
   io.emit("leaderboard", getLeaderboard());
 }
 
