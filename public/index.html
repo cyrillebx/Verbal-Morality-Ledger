@@ -117,6 +117,7 @@ button:disabled:hover{background:transparent;color:var(--a);box-shadow:none;}
 .modal-status{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;min-height:16px;}
 .modal-btns{display:flex;gap:8px;justify-content:center;margin-top:14px;}
 footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margin-top:24px;padding-top:16px;border-top:1px solid var(--border);line-height:2;}
+xrpl-wallet-connector{position:fixed;left:-9999px;bottom:-9999px;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -257,13 +258,13 @@ function initWalletManager(){
     const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
   });
 }
-function openWalletConnector(){
+async function openWalletConnector(){
   const btn=document.getElementById("signinBtn");
   btn.disabled=true;btn.textContent="Connecting...";
   setEl("signinStatus","OPENING WALLET CONNECTOR...");
   initWalletManager();
   const connector=document.getElementById("wallet-connector");
-  if(connector&&connector.open)connector.open();
+  if(connector&&connector.open)await connector.open();
 }
 async function submitUsername(){
   const val=document.getElementById("usernameInput").value.trim();
