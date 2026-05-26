@@ -299,22 +299,27 @@ app.get("/api/deposit-prepare", async (req, res) => {
 });
 
 // ── DEPOSIT SUBMIT (xrpl-connect) ────────────────────────
-// Receives a signed tx blob from the frontend, submits it, credits session
+// Receives signed tx blob OR txid (if Xaman auto-submitted), credits session
 app.post("/api/deposit-submit", async (req, res) => {
-  const { address, txBlob } = req.body;
-  if (!address || !txBlob) return res.status(400).json({ error: "Missing fields" });
+  const { address, txBlob, txHash: clientTxHash } = req.body;
+  if (!address) return res.status(400).json({ error: "Missing address" });
   try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
   try {
-    const result = await xrplClient.submitAndWait(txBlob);
-    const txHash = result.result.hash;
+    let finalTxHash = clientTxHash;
+    if (txBlob && typeof txBlob === "string" && txBlob.length > 10) {
+      // We have the signed blob — submit it ourselves
+      const result = await xrplClient.submitAndWait(txBlob);
+      finalTxHash = result.result.hash;
+    }
+    // If no blob, Xaman already submitted — trust the txHash from the client
     if (!sessions.has(address)) {
       sessions.set(address, { username: address.slice(0,8), balance: 0, swearCount: 0, depositTx: null });
     }
     const session = sessions.get(address);
     session.balance += parseInt(DEPOSIT_AMOUNT);
-    session.depositTx = txHash;
+    session.depositTx = finalTxHash || null;
     broadcastLeaderboard();
-    res.json({ ok: true, txHash, balance: session.balance });
+    res.json({ ok: true, txHash: finalTxHash, balance: session.balance });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
