@@ -4,8 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Verbal Morality Ledger</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/libs/xrpl-connect.umd.js"></script>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap");
 :root{--g:#00ff41;--gd:#00b32c;--gx:#003d0e;--a:#ffb300;--ad:#b37e00;--r:#ff2222;--bg:#040a04;--panel:#060e06;--panel2:#07120a;--border:#00ff4133;--borderb:#00ff4166;--dim:#00802099;--mono:"Share Tech Mono","Courier New",monospace;--disp:"Orbitron",monospace;}
@@ -133,11 +133,8 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
     <div class="ph"><div class="led" id="connLed"></div><div class="plabel">Step 1 - Citizen Authentication</div></div>
     <div class="pb">
       <div class="xaman-area">
-        <div class="xaman-logo">SIGN IN WITH XAMAN</div>
-        <div class="xaman-desc">Scan with your Xaman wallet to authenticate.<br/>On mobile, tap the button to open Xaman directly.<br/><span style="color:var(--r)">Enable Testnet: Xaman Settings - Advanced - Developer Mode</span></div>
-        <button class="btn-g" id="signinBtn" onclick="startSignIn()">Generate Sign-In QR</button>
-        <div class="qr-wrap" id="signinQR"><div id="signinQRCode"></div></div>
-        <a class="deeplink" id="signinDeepLink" href="#" target="_blank">Open in Xaman App</a>
+        <div class="xaman-desc">Connect your XRPL wallet to authenticate.<br/>Supports Xaman, Crossmark, and GemWallet.<br/><span style="color:var(--r)">Ensure your wallet is set to Testnet.</span></div>
+        <button class="btn-g" id="signinBtn" onclick="openWalletConnector()">Connect Wallet</button>
         <div class="step-status" id="signinStatus"></div>
       </div>
       <div class="charity-note">FINES DONATED TO: <a href="https://www.tourettescotland.org" target="_blank">TOURETTE SCOTLAND</a> (SC021851) - TESTNET<br/>CHARGE PER INFRACTION: <span style="color:var(--g)">0.1 XRP</span></div>
@@ -160,9 +157,7 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
     <div class="pb">
       <div class="xaman-area">
         <div class="xaman-desc">Deposit <span style="color:var(--g);font-weight:bold">5 XRP</span> into the enforcement vault.<br/>Fines are auto-deducted with no approval needed per swear.<br/>Any remaining balance is returned when you leave.</div>
-        <button class="btn-g" id="depositBtn" onclick="startDeposit()">Deposit 5 XRP via Xaman</button>
-        <div class="qr-wrap" id="depositQR"><div id="depositQRCode"></div></div>
-        <a class="deeplink" id="depositDeepLink" href="#" target="_blank">Open in Xaman</a>
+        <button class="btn-g" id="depositBtn" onclick="startDeposit()">Deposit 5 XRP</button>
         <div class="step-status" id="depositStatus"></div>
       </div>
     </div>
@@ -212,6 +207,8 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 </div>
 <footer>VERBAL MORALITY LEDGER v2.032 - XRPL TESTNET ENFORCEMENT DIVISION<br/>IN AID OF TOURETTE SCOTLAND - ALL TRANSACTIONS IMMUTABLE - HAVE A NICE DAY</footer>
 </div>
+<audio id="vms-audio" src="/audio/vms.mp3" preload="auto"></audio>
+<xrpl-wallet-connector id="wallet-connector"></xrpl-wallet-connector>
 <div class="modal-bg" id="accuseModal">
   <div class="modal">
     <div class="modal-title">WHO SAID THAT?</div>
@@ -224,45 +221,49 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 </div>
 <script>
 const SWEARS=["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","shitstain","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","encule","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoire","fils de chienne","chienne","garce","trainee","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tete de noeud","tete de con","mange-merde","petasse","tapette","pede","fiotte","baltringue","bouffon","dechet","vermine","parasite","lope","lopette","fdp","ntm","batar","sale race","pauvre con","gros con","sale con","petit con"];
-let myAddress=null,myUsername=null,recognitions=[],isListening=false,processing=false,pendingWord=null;
+let myAddress=null,myUsername=null,walletManager=null,recognitions=[],isListening=false,processing=false,pendingWord=null;
 const socket=io();
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
 socket.on("leaderboard",renderLeaderboard);
 function showStep(id){document.querySelectorAll(".step").forEach(s=>s.classList.remove("active"));document.getElementById("step-"+id).classList.add("active");}
-async function startSignIn(){
+function initWalletManager(){
+  if(walletManager)return;
+  const{WalletManager,XamanAdapter,CrossmarkAdapter,GemWalletAdapter}=window.XRPLConnect;
+  const adapters=[new XamanAdapter()];
+  if(CrossmarkAdapter)adapters.push(new CrossmarkAdapter());
+  if(GemWalletAdapter)adapters.push(new GemWalletAdapter());
+  walletManager=new WalletManager({adapters,network:"testnet"});
+  const connector=document.getElementById("wallet-connector");
+  if(connector&&connector.setWalletManager)connector.setWalletManager(walletManager);
+  walletManager.on("connect",async(account)=>{
+    myAddress=account.address;
+    document.getElementById("connLed").className="led on";
+    setEl("signinStatus","AUTHENTICATED - CHECKING SESSION...");
+    const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
+    try{
+      const sessionRes=await fetch("/api/session/"+myAddress);
+      if(sessionRes.ok){
+        const sess=await sessionRes.json();
+        if(sess.balance>0){
+          myUsername=sess.username;
+          setEl("signinStatus","WELCOME BACK "+sess.username.toUpperCase()+" - RESUMING SESSION");
+          setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
+        }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
+      }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
+    }catch(e){setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
+  });
+  walletManager.on("error",(err)=>{
+    setEl("signinStatus","ERROR: "+(err?.message||String(err)).toUpperCase());
+    const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
+  });
+}
+function openWalletConnector(){
   const btn=document.getElementById("signinBtn");
-  btn.disabled=true;btn.textContent="Generating...";setEl("signinStatus","CREATING SIGN-IN REQUEST...");
-  try{
-    const res=await fetch("/api/signin",{method:"POST"});
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    showQR("signinQRCode","signinQR","signinDeepLink",data.deeplink);
-    setEl("signinStatus","SCAN QR OR OPEN XAMAN - WAITING...");
-    btn.textContent="Waiting for Xaman...";
-    const uuid=data.uuid;
-    const poll=setInterval(async()=>{
-      try{
-        const pr=await fetch("/api/payload/"+uuid);
-        const pd=await pr.json();
-        if(pd&&pd.meta&&pd.meta.resolved){
-          clearInterval(poll);
-          if(pd.meta.signed&&pd.response&&pd.response.account){
-            myAddress=pd.response.account;
-            document.getElementById("connLed").className="led on";
-            const sessionRes=await fetch("/api/session/"+myAddress);
-            if(sessionRes.ok){
-              const sess=await sessionRes.json();
-              if(sess.balance>0){
-                myUsername=sess.username;
-                setEl("signinStatus","WELCOME BACK "+sess.username.toUpperCase()+" - RESUMING SESSION");
-                setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
-              }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
-            }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
-          }else{setEl("signinStatus","REJECTED - TRY AGAIN");btn.disabled=false;btn.textContent="Generate Sign-In QR";}
-        }
-      }catch(e){}
-    },2000);
-  }catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());btn.disabled=false;btn.textContent="Generate Sign-In QR";}
+  btn.disabled=true;btn.textContent="Connecting...";
+  setEl("signinStatus","OPENING WALLET CONNECTOR...");
+  initWalletManager();
+  const connector=document.getElementById("wallet-connector");
+  if(connector&&connector.open)connector.open();
 }
 async function submitUsername(){
   const val=document.getElementById("usernameInput").value.trim();
@@ -276,39 +277,28 @@ async function submitUsername(){
 }
 async function startDeposit(){
   const btn=document.getElementById("depositBtn");
-  btn.disabled=true;btn.textContent="Generating...";setEl("depositStatus","CREATING DEPOSIT REQUEST...");
+  btn.disabled=true;btn.textContent="Preparing...";setEl("depositStatus","PREPARING DEPOSIT TRANSACTION...");
   try{
-    const res=await fetch("/api/deposit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:myAddress})});
-    const data=await res.json();
+    const txRes=await fetch("/api/deposit-prepare?address="+encodeURIComponent(myAddress));
+    const{tx,error}=await txRes.json();
+    if(error)throw new Error(error);
+    setEl("depositStatus","APPROVE 5 XRP PAYMENT IN YOUR WALLET...");
+    btn.textContent="Waiting for approval...";
+    const signed=await walletManager.sign(tx);
+    const txBlob=signed?.tx_blob||signed?.txBlob||signed;
+    setEl("depositStatus","SUBMITTING TO XRPL...");
+    const submitRes=await fetch("/api/deposit-submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:myAddress,txBlob})});
+    const data=await submitRes.json();
     if(data.error)throw new Error(data.error);
-    showQR("depositQRCode","depositQR","depositDeepLink",data.deeplink);
-    setEl("depositStatus","SCAN QR - APPROVE 5 XRP IN XAMAN...");
-    btn.textContent="Waiting for deposit...";
-    const savedAddress=myAddress;
-    const uuid=data.uuid;
-    const poll=setInterval(async()=>{
-      try{
-        const pr=await fetch("/api/payload/"+uuid);
-        const pd=await pr.json();
-        if(pd&&pd.meta&&pd.meta.resolved){
-          clearInterval(poll);
-          if(pd.meta.signed){
-            await fetch("/api/deposit-confirm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:savedAddress,txHash:pd.response?pd.response.txid:null})});
-            setEl("depositStatus","VAULT FUNDED - ENTERING SESSION...");
-            setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
-          }else{setEl("depositStatus","DEPOSIT REJECTED - TRY AGAIN");btn.disabled=false;btn.textContent="Deposit 5 XRP via Xaman";}
-        }
-      }catch(e){}
-    },2000);
-  }catch(e){setEl("depositStatus","ERROR: "+e.message);btn.disabled=false;btn.textContent="Deposit 5 XRP via Xaman";}
+    setEl("depositStatus","VAULT FUNDED - ENTERING SESSION...");
+    setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
+  }catch(e){setEl("depositStatus","ERROR: "+e.message.toUpperCase());btn.disabled=false;btn.textContent="Deposit 5 XRP";}
 }
 function addAnotherUser(){
   myAddress=null;myUsername=null;
-  document.getElementById("signinQR").style.display="none";
-  document.getElementById("signinDeepLink").style.display="none";
-  document.getElementById("signinStatus").textContent="";
-  document.getElementById("signinBtn").disabled=false;
-  document.getElementById("signinBtn").textContent="Generate Sign-In QR";
+  if(walletManager)try{walletManager.disconnect();}catch(e){}
+  setEl("signinStatus","");
+  const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
   document.getElementById("usernameInput").value="";
   showStep("signin");
 }
@@ -332,6 +322,8 @@ function renderLeaderboard(data){
 }
 async function showAccuseModal(word){
   pendingWord=word;
+  const audio=document.getElementById("vms-audio");
+  audio.currentTime=0;audio.play().catch(()=>{});
   document.getElementById("accuseWord").textContent="[ "+word.toUpperCase()+" ]";
   document.getElementById("accuseStatus").textContent="";
   try{
@@ -389,7 +381,6 @@ function detectSwears(text){const lower=text.toLowerCase();const words=lower.rep
 function switchTab(t){document.getElementById("mode-mic").style.display=t==="mic"?"flex":"none";document.getElementById("mode-text").style.display=t==="text"?"block":"none";document.getElementById("tab-mic").className="mtab"+(t==="mic"?" active":"");document.getElementById("tab-text").className="mtab"+(t==="text"?" active":"");if(t!=="mic"&&isListening)stopMic();}
 function addTx(username,word,hash){const list=document.getElementById("txList");const empty=list.querySelector(".txempty");if(empty)empty.remove();const t=new Date().toLocaleTimeString("en-GB",{hour12:false});const item=document.createElement("div");item.className="txitem";item.innerHTML='<span class="txuser">'+username.toUpperCase()+'</span><span class="txword">['+word.toUpperCase()+']</span><span class="txamt">-0.1 XRP</span><span class="txtime">'+t+'</span>'+(hash?'<a class="txlink" href="https://testnet.xrpl.org/transactions/'+hash+'" target="_blank">VIEW</a>':'<span class="txlink" style="color:var(--ad)">PENDING</span>');list.prepend(item);}
 function showAlert(msg){const el=document.getElementById("valert");el.textContent="! "+msg;el.className="valert show";setTimeout(()=>{el.className="valert";},4000);}
-function showQR(elId,wrapId,linkId,url){const el=document.getElementById(elId);el.innerHTML="";new QRCode(el,{text:url,width:160,height:160,colorDark:"#000",colorLight:"#fff"});document.getElementById(wrapId).style.display="block";const dl=document.getElementById(linkId);dl.href=url;dl.style.display="block";}
 function setEl(id,msg){document.getElementById(id).textContent=msg;}
 </script>
 </body>

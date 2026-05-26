@@ -281,6 +281,48 @@ app.post("/api/withdraw", async (req, res) => {
 
 // ── LEADERBOARD ───────────────────────────────────────────
 
+// ── DEPOSIT PREPARE (xrpl-connect) ───────────────────────
+// Returns an autofilled Payment tx for the frontend to sign
+app.get("/api/deposit-prepare", async (req, res) => {
+  const { address } = req.query;
+  if (!address) return res.status(400).json({ error: "Missing address" });
+  if (!hotWallet || !xrplClient) return res.status(500).json({ error: "Hot wallet not ready" });
+  try {
+    const tx = await xrplClient.autofill({
+      TransactionType: "Payment",
+      Account: address,
+      Destination: hotWallet.address,
+      Amount: DEPOSIT_AMOUNT,
+      Memos: [{ Memo: { MemoData: Buffer.from(`VML DEPOSIT: ${address}`, "utf8").toString("hex").toUpperCase() } }],
+    });
+    res.json({ tx });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── DEPOSIT SUBMIT (xrpl-connect) ────────────────────────
+// Receives a signed tx blob from the frontend, submits it, credits session
+app.post("/api/deposit-submit", async (req, res) => {
+  const { address, txBlob } = req.body;
+  if (!address || !txBlob) return res.status(400).json({ error: "Missing fields" });
+  if (!xrplClient) return res.status(500).json({ error: "XRPL client not ready" });
+  try {
+    const result = await xrplClient.submitAndWait(txBlob);
+    const txHash = result.result.hash;
+    if (!sessions.has(address)) {
+      sessions.set(address, { username: address.slice(0,8), balance: 0, swearCount: 0, depositTx: null });
+    }
+    const session = sessions.get(address);
+    session.balance += parseInt(DEPOSIT_AMOUNT);
+    session.depositTx = txHash;
+    broadcastLeaderboard();
+    res.json({ ok: true, txHash, balance: session.balance });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/deposit-confirm", (req, res) => {
   const { address, txHash } = req.body;
   console.log("deposit-confirm:", address);
