@@ -2,7 +2,7 @@
 
 > *"This is a violation of the Verbal Morality Statute."* — Demolition Man, 1993
 
-A real-time swear jar for the blockchain age. Built for hackathons and parties — connect your XRPL wallet, deposit 5 XRP into the enforcement vault, and every time the microphone catches you swearing, 0.1 XRP is automatically fined and donated to **[Tourette Scotland](https://www.tourettescotland.org)** (SC021851) on the XRPL Testnet.
+A real-time swear jar for the blockchain age. Built for hackathons and parties — connect your XRPL Testnet wallet, deposit 5 XRP into the enforcement vault, and every time the microphone catches you swearing, 0.1 XRP is automatically fined and donated to **[Tourette Scotland](https://www.tourettescotland.org)** (SC021851) on the XRPL Testnet.
 
 No manual approvals. No escape. Just consequence.
 
@@ -16,7 +16,7 @@ No manual approvals. No escape. Just consequence.
 4. **Get fined** — 0.1 XRP auto-deducted per infraction, logged on-chain
 5. **Compete** — live leaderboard ranks players by violation count
 
-Every fine triggers the Verbal Morality Statute audio from Demolition Man and opens an accusation modal so the group can agree on who said it.
+Every fine triggers the Verbal Morality Statute from Demolition Man and opens an accusation modal so the group can agree on who said it.
 
 ---
 
