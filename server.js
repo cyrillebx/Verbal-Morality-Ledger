@@ -6,13 +6,20 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { createServer as createHttpsServer } from "https";
 import dotenv from "dotenv";
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const httpServer = createServer(app);
+
+const certPath = path.join(__dirname, "cert.pem");
+const keyPath = path.join(__dirname, "key.pem");
+const httpServer = existsSync(certPath) && existsSync(keyPath)
+  ? createHttpsServer({ cert: readFileSync(certPath), key: readFileSync(keyPath) }, app)
+  : createServer(app);
+
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
 app.use(cors());
@@ -125,7 +132,7 @@ app.post("/api/signin", async (req, res) => {
 app.post("/api/username", (req, res) => {
   const { address, username } = req.body;
   if (!address || !username) return res.status(400).json({ error: "Missing fields" });
-  const taken = [...sessions.values()].some(s => s.username.toLowerCase() === username.toLowerCase());
+  const taken = [...sessions.entries()].some(([addr, s]) => addr !== address && s.username.toLowerCase() === username.toLowerCase());
   if (taken) return res.status(400).json({ error: "Username taken" });
   if (!sessions.has(address)) {
     sessions.set(address, { username, balance: 0, swearCount: 0, depositTx: null });

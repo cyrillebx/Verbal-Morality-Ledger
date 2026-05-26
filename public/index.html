@@ -224,7 +224,7 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 </div>
 <script>
 const SWEARS=["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","shitstain","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","encule","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoire","fils de chienne","chienne","garce","trainee","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tete de noeud","tete de con","mange-merde","petasse","tapette","pede","fiotte","baltringue","bouffon","dechet","vermine","parasite","lope","lopette","fdp","ntm","batar","sale race","pauvre con","gros con","sale con","petit con"];
-let myAddress=null,myUsername=null,recognition=null,isListening=false,processing=false,pendingWord=null;
+let myAddress=null,myUsername=null,recognitions=[],isListening=false,processing=false,pendingWord=null;
 const socket=io();
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
 socket.on("leaderboard",renderLeaderboard);
@@ -249,8 +249,15 @@ async function startSignIn(){
           if(pd.meta.signed&&pd.response&&pd.response.account){
             myAddress=pd.response.account;
             document.getElementById("connLed").className="led on";
-            setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");
-            setTimeout(()=>showStep("username"),600);
+            const sessionRes=await fetch("/api/session/"+myAddress);
+            if(sessionRes.ok){
+              const sess=await sessionRes.json();
+              if(sess.balance>0){
+                myUsername=sess.username;
+                setEl("signinStatus","WELCOME BACK "+sess.username.toUpperCase()+" - RESUMING SESSION");
+                setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
+              }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
+            }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
           }else{setEl("signinStatus","REJECTED - TRY AGAIN");btn.disabled=false;btn.textContent="Generate Sign-In QR";}
         }
       }catch(e){}
@@ -353,27 +360,32 @@ function dismissAccuse(){document.getElementById("accuseModal").classList.remove
 function initSpeech(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){document.getElementById("transcript").textContent="SPEECH API UNAVAILABLE - USE CHROME";document.getElementById("micBtn").disabled=true;return;}
-  recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang="en-US";
-  recognition.onresult=e=>{
-    let interim="",final="";
-    for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?final+=t:interim+=t;}
-    const txt=(final||interim).trim();
-    const found=detectSwears(txt);
-    if(found.length){
-      let hi=txt;
-      found.forEach(s=>{hi=hi.replace(new RegExp("\\b"+s+"\\b","gi"),"<span class=\"shit\">["+s.toUpperCase()+"]</span>");});
-      document.getElementById("transcript").innerHTML=">> "+hi;
-      if(final&&!processing){processing=true;showAccuseModal(found[0]);}
-    }else{document.getElementById("transcript").textContent=txt?">> "+txt:"MONITORING...";}
-  };
-  recognition.onerror=e=>{if(e.error==="not-allowed"){document.getElementById("transcript").textContent="MIC ACCESS DENIED";stopMic();}else if(e.error!=="no-speech"&&e.error!=="aborted")console.warn("Speech:",e.error);};
-  recognition.onend=()=>{if(isListening)try{recognition.start();}catch(e){}};
+  function makeRecog(lang){
+    const r=new SR();r.continuous=true;r.interimResults=true;r.lang=lang;
+    r.onresult=e=>{
+      let interim="",final="";
+      for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?final+=t:interim+=t;}
+      const txt=(final||interim).trim();
+      if(!txt)return;
+      const found=detectSwears(txt);
+      if(found.length){
+        let hi=txt;
+        found.forEach(s=>{hi=hi.replace(new RegExp("\\b"+s+"\\b","gi"),"<span class=\"shit\">["+s.toUpperCase()+"]</span>");});
+        document.getElementById("transcript").innerHTML=">> "+hi;
+        if(final&&!processing){processing=true;showAccuseModal(found[0]);}
+      }else{document.getElementById("transcript").textContent=">> "+txt;}
+    };
+    r.onerror=e=>{if(e.error==="not-allowed"){document.getElementById("transcript").textContent="MIC ACCESS DENIED";stopMic();}else if(e.error!=="no-speech"&&e.error!=="aborted")console.warn("Speech ("+lang+"):",e.error);};
+    r.onend=()=>{if(isListening)try{r.start();}catch(e){}};
+    return r;
+  }
+  recognitions=[makeRecog("en-US"),makeRecog("fr-FR")];
 }
 async function toggleMic(){if(isListening){stopMic();return;}try{await navigator.mediaDevices.getUserMedia({audio:true});startMic();}catch(e){document.getElementById("transcript").textContent="MIC ACCESS DENIED";}}
-function startMic(){isListening=true;try{recognition.start();}catch(e){}document.getElementById("micBtn").classList.add("listening");document.getElementById("micBtn").textContent="stop";document.getElementById("transcript").textContent="MONITORING...";}
-function stopMic(){isListening=false;try{recognition.stop();}catch(e){}document.getElementById("micBtn").classList.remove("listening");document.getElementById("micBtn").textContent="mic";document.getElementById("transcript").textContent="AWAITING AUDIO INPUT...";}
+function startMic(){isListening=true;recognitions.forEach(r=>{try{r.start();}catch(e){}});document.getElementById("micBtn").classList.add("listening");document.getElementById("micBtn").textContent="stop";document.getElementById("transcript").textContent="MONITORING...";}
+function stopMic(){isListening=false;recognitions.forEach(r=>{try{r.stop();}catch(e){}});document.getElementById("micBtn").classList.remove("listening");document.getElementById("micBtn").textContent="mic";document.getElementById("transcript").textContent="AWAITING AUDIO INPUT...";}
 function checkText(){const val=document.getElementById("textInput").value.trim();if(!val)return;const found=detectSwears(val);if(found.length&&!processing){processing=true;showAccuseModal(found[0]);}else if(!found.length)showAlert("STATEMENT COMPLIANT - NO INFRACTIONS DETECTED");document.getElementById("textInput").value="";}
-function detectSwears(text){const lower=text.toLowerCase();const words=lower.replace(/[^a-z\s]/g,"").split(/\s+/);const direct=SWEARS.filter(s=>words.includes(s));if(direct.length)return direct;return SWEARS.filter(s=>s.length>1&&new RegExp(s[0]+"[*]{"+(s.length-1)+"}","i").test(lower));}
+function detectSwears(text){const lower=text.toLowerCase();const words=lower.replace(/[^a-zàâäéèêëîïôùûüç\s]/g,"").split(/\s+/);const direct=SWEARS.filter(s=>words.includes(s));if(direct.length)return direct;return SWEARS.filter(s=>s.length>1&&new RegExp(s[0]+"[*]{"+(s.length-1)+"}","i").test(lower));}
 function switchTab(t){document.getElementById("mode-mic").style.display=t==="mic"?"flex":"none";document.getElementById("mode-text").style.display=t==="text"?"block":"none";document.getElementById("tab-mic").className="mtab"+(t==="mic"?" active":"");document.getElementById("tab-text").className="mtab"+(t==="text"?" active":"");if(t!=="mic"&&isListening)stopMic();}
 function addTx(username,word,hash){const list=document.getElementById("txList");const empty=list.querySelector(".txempty");if(empty)empty.remove();const t=new Date().toLocaleTimeString("en-GB",{hour12:false});const item=document.createElement("div");item.className="txitem";item.innerHTML='<span class="txuser">'+username.toUpperCase()+'</span><span class="txword">['+word.toUpperCase()+']</span><span class="txamt">-0.1 XRP</span><span class="txtime">'+t+'</span>'+(hash?'<a class="txlink" href="https://testnet.xrpl.org/transactions/'+hash+'" target="_blank">VIEW</a>':'<span class="txlink" style="color:var(--ad)">PENDING</span>');list.prepend(item);}
 function showAlert(msg){const el=document.getElementById("valert");el.textContent="! "+msg;el.className="valert show";setTimeout(()=>{el.className="valert";},4000);}
