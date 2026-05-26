@@ -197,6 +197,10 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
       <div id="mode-mic" class="mic-area">
         <button class="mic-btn" id="micBtn" onclick="toggleMic()">mic</button>
         <div class="tbox" id="transcript">AWAITING AUDIO INPUT...</div>
+        <div style="display:flex;gap:8px;align-items:center;width:100%">
+          <button class="btn-g" style="padding:4px 10px;font-size:8px;flex:1" onclick="testAudio()">TEST AUDIO</button>
+          <span id="audioStatus" style="font-size:9px;letter-spacing:1px;color:var(--dim)"></span>
+        </div>
       </div>
       <div id="mode-text" style="display:none">
         <div class="fl">Input Statement for Analysis</div>
@@ -216,7 +220,7 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 </div>
 <footer>VERBAL MORALITY LEDGER v2.032 - XRPL TESTNET ENFORCEMENT DIVISION<br/>IN AID OF TOURETTE SCOTLAND - ALL TRANSACTIONS IMMUTABLE - HAVE A NICE DAY</footer>
 </div>
-<audio id="vms-audio" src="/audio/vms.mp3" preload="auto"></audio>
+<audio id="vms-audio" src="/audio/vms.mp3" preload="auto" onerror="setAudioStatus('LOAD FAILED')"></audio>
 <div class="modal-bg" id="accuseModal">
   <div class="modal">
     <div class="modal-title">WHO SAID THAT?</div>
@@ -240,9 +244,11 @@ function playVMS(){
   try{
     const a=document.getElementById("vms-audio");
     a.currentTime=0;
-    a.play().catch(e=>console.error("playVMS:",e.message));
-  }catch(e){console.error("playVMS:",e);}
+    a.play().then(()=>{setAudioStatus("OK");}).catch(e=>{setAudioStatus("ERR: "+e.message);console.error("playVMS:",e.message);});
+  }catch(e){setAudioStatus("ERR: "+e.message);console.error("playVMS:",e);}
 }
+function testAudio(){playVMS();}
+function setAudioStatus(msg){const el=document.getElementById("audioStatus");if(el)el.textContent=msg;}
 const socket=io();
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
 socket.on("leaderboard",renderLeaderboard);
