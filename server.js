@@ -20,7 +20,11 @@ const httpServer = existsSync(certPath) && existsSync(keyPath)
   ? createHttpsServer({ cert: readFileSync(certPath), key: readFileSync(keyPath) }, app)
   : createServer(app);
 
-const io = new Server(httpServer, { cors: { origin: "*" } });
+const io = new Server(httpServer, {
+  cors: { origin: "*" },
+  // Vercel serverless doesn't support WebSocket upgrades — polling only
+  transports: process.env.VERCEL ? ["polling"] : ["polling", "websocket"],
+});
 
 app.use(cors());
 app.use(express.json());
@@ -69,6 +73,7 @@ function loadSessions() {
 }
 
 function saveSessions() {
+  if (process.env.VERCEL) return; // no persistent filesystem on Vercel
   writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions)), "utf8");
 }
 
@@ -442,5 +447,12 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {});
 });
 
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`VML server running on :${PORT}`));
+// Local dev: start listening. On Vercel the handler export below is used instead.
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  httpServer.listen(PORT, () => console.log(`VML server running on :${PORT}`));
+}
+
+export default function handler(req, res) {
+  httpServer.emit("request", req, res);
+}

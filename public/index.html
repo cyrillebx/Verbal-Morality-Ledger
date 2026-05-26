@@ -257,7 +257,7 @@ function setLang(lang){
     recognitions=[];
   }
 }
-const socket=io();
+const socket=io({transports:["polling","websocket"]});
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
 socket.on("leaderboard",renderLeaderboard);
 function showStep(id){document.querySelectorAll(".step").forEach(s=>s.classList.remove("active"));document.getElementById("step-"+id).classList.add("active");}
