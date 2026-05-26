@@ -404,26 +404,24 @@ function dismissAccuse(){document.getElementById("accuseModal").classList.remove
 function initSpeech(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){document.getElementById("transcript").textContent="SPEECH API UNAVAILABLE - USE CHROME";document.getElementById("micBtn").disabled=true;return;}
-  function makeRecog(lang){
-    const r=new SR();r.continuous=true;r.interimResults=true;r.lang=lang;
-    r.onresult=e=>{
-      let interim="",final="";
-      for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?final+=t:interim+=t;}
-      const txt=(final||interim).trim();
-      if(!txt)return;
-      const found=detectSwears(txt);
-      if(found.length){
-        let hi=txt;
-        found.forEach(s=>{hi=hi.replace(new RegExp("\\b"+s+"\\b","gi"),"<span class=\"shit\">["+s.toUpperCase()+"]</span>");});
-        document.getElementById("transcript").innerHTML=">> "+hi;
-        if(!processing){processing=true;showAccuseModal(found[0]);}
-      }else{document.getElementById("transcript").textContent=">> "+txt;}
-    };
-    r.onerror=e=>{if(e.error==="not-allowed"){document.getElementById("transcript").textContent="MIC ACCESS DENIED";stopMic();}else if(e.error!=="no-speech"&&e.error!=="aborted")console.warn("Speech ("+lang+"):",e.error);};
-    r.onend=()=>{if(isListening)try{r.start();}catch(e){}};
-    return r;
-  }
-  recognitions=[makeRecog("en-US"),makeRecog("fr-FR")];
+  if(recognitions.length)return;
+  const r=new SR();r.continuous=true;r.interimResults=true;r.lang="en-US";
+  r.onresult=e=>{
+    let interim="",final="";
+    for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;e.results[i].isFinal?final+=t:interim+=t;}
+    const txt=(final||interim).trim();
+    if(!txt)return;
+    const found=detectSwears(txt);
+    if(found.length){
+      let hi=txt;
+      found.forEach(s=>{hi=hi.replace(new RegExp("\\b"+s+"\\b","gi"),"<span class=\"shit\">["+s.toUpperCase()+"]</span>");});
+      document.getElementById("transcript").innerHTML=">> "+hi;
+      if(!processing){processing=true;showAccuseModal(found[0]);}
+    }else{document.getElementById("transcript").textContent=">> "+txt;}
+  };
+  r.onerror=e=>{if(e.error==="not-allowed"){document.getElementById("transcript").textContent="MIC ACCESS DENIED";stopMic();}else if(e.error!=="no-speech"&&e.error!=="aborted")console.warn("Speech:",e.error);};
+  r.onend=()=>{if(isListening)try{r.start();}catch(e){}};
+  recognitions=[r];
 }
 async function toggleMic(){if(isListening){stopMic();return;}try{await navigator.mediaDevices.getUserMedia({audio:true});startMic();}catch(e){document.getElementById("transcript").textContent="MIC ACCESS DENIED";}}
 function startMic(){
