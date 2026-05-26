@@ -235,9 +235,9 @@ socket.on("leaderboard",renderLeaderboard);
 function showStep(id){document.querySelectorAll(".step").forEach(s=>s.classList.remove("active"));document.getElementById("step-"+id).classList.add("active");}
 function initWalletManager(){
   if(walletManager)return;
-  const{WalletManager,XamanAdapter,CrossmarkAdapter,GemWalletAdapter}=window.XRPLConnect;
+  const{WalletManager,Adapters}=window.XRPLConnect;
   walletManager=new WalletManager({
-    adapters:[new XamanAdapter(),new CrossmarkAdapter(),new GemWalletAdapter()].filter(Boolean),
+    adapters:[new Adapters.Xaman(),new Adapters.Crossmark(),new Adapters.GemWallet()].filter(Boolean),
     network:"testnet"
   });
   walletManager.on("connect",async(account)=>{
