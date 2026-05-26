@@ -408,7 +408,15 @@ function initSpeech(){
   recognitions=[makeRecog("en-US"),makeRecog("fr-FR")];
 }
 async function toggleMic(){if(isListening){stopMic();return;}try{await navigator.mediaDevices.getUserMedia({audio:true});startMic();}catch(e){document.getElementById("transcript").textContent="MIC ACCESS DENIED";}}
-function startMic(){isListening=true;recognitions.forEach(r=>{try{r.start();}catch(e){}});document.getElementById("micBtn").classList.add("listening");document.getElementById("micBtn").textContent="stop";document.getElementById("transcript").textContent="MONITORING...";}
+function startMic(){
+  isListening=true;
+  recognitions.forEach(r=>{try{r.start();}catch(e){}});
+  const audio=document.getElementById("vms-audio");
+  audio.muted=true;audio.play().then(()=>{audio.pause();audio.currentTime=0;audio.muted=false;}).catch(()=>{});
+  document.getElementById("micBtn").classList.add("listening");
+  document.getElementById("micBtn").textContent="stop";
+  document.getElementById("transcript").textContent="MONITORING...";
+}
 function stopMic(){isListening=false;recognitions.forEach(r=>{try{r.stop();}catch(e){}});document.getElementById("micBtn").classList.remove("listening");document.getElementById("micBtn").textContent="mic";document.getElementById("transcript").textContent="AWAITING AUDIO INPUT...";}
 function checkText(){const val=document.getElementById("textInput").value.trim();if(!val)return;const found=detectSwears(val);if(found.length&&!processing){processing=true;showAccuseModal(found[0]);}else if(!found.length)showAlert("STATEMENT COMPLIANT - NO INFRACTIONS DETECTED");document.getElementById("textInput").value="";}
 function detectSwears(text){const lower=text.toLowerCase();const words=lower.replace(/[^a-zàâäéèêëîïôùûüç\s]/g,"").split(/\s+/);const direct=SWEARS.filter(s=>words.includes(s));if(direct.length)return direct;return SWEARS.filter(s=>s.length>1&&new RegExp(s[0]+"[*]{"+(s.length-1)+"}","i").test(lower));}
