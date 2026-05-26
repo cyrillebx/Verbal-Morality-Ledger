@@ -388,6 +388,37 @@ function renderLeaderboard(data){
   if(!data.length){el.innerHTML='<div class="lb-empty">NO VIOLATIONS YET. KEEP IT CLEAN.</div>';return;}
   el.innerHTML=data.map((u,i)=>'<div class="lb-row '+(i===0&&u.swearCount>0?"lb-gold":"")+'"><span class="lb-rank">#'+(i+1)+'</span><span class="lb-name">'+u.username+'</span><span class="lb-count">'+u.swearCount+' swears</span><span class="lb-bal">'+(u.balance/1000000).toFixed(1)+' XRP</span></div>').join("");
 }
+function incrementStatsLocally(username){
+  const count=(parseInt(document.getElementById("statCount").textContent)||0)+1;
+  document.getElementById("statCount").textContent=count;
+  document.getElementById("statXRP").textContent=(count*0.1).toFixed(1);
+  document.getElementById("statTx").textContent=count;
+  // Update leaderboard row in place
+  const rows=document.querySelectorAll(".lb-row");
+  let found=false;
+  rows.forEach(row=>{
+    const nameEl=row.querySelector(".lb-name");
+    const countEl=row.querySelector(".lb-count");
+    if(nameEl&&nameEl.textContent===username){
+      const n=(parseInt(countEl.textContent)||0)+1;
+      countEl.textContent=n+" swears";
+      found=true;
+    }
+  });
+  if(!found){
+    const el=document.getElementById("leaderboard");
+    const empty=el.querySelector(".lb-empty");
+    if(empty)empty.remove();
+    el.insertAdjacentHTML("beforeend",'<div class="lb-row"><span class="lb-rank">#'+(rows.length+1)+'</span><span class="lb-name">'+username+'</span><span class="lb-count">1 swears</span><span class="lb-bal">-</span></div>');
+  }
+  // Update citizens grid card
+  document.querySelectorAll(".user-card").forEach(card=>{
+    if(card.querySelector(".user-name")?.textContent===username){
+      const vc=card.querySelector(".user-count");
+      if(vc){const n=(parseInt(vc.textContent)||0)+1;vc.textContent=n+" violations";}
+    }
+  });
+}
 async function showAccuseModal(word){
   pendingWord=word;
   playVMS();
@@ -409,6 +440,7 @@ async function accuseUser(username){
     if(data.error)throw new Error(data.error);
     document.getElementById("accuseStatus").textContent="CHARGED! 0.1 XRP DEDUCTED FROM "+username.toUpperCase();
     addTx(username,pendingWord,data.txHash);
+    incrementStatsLocally(username);
     setTimeout(dismissAccuse,1500);
   }catch(e){
     document.getElementById("accuseStatus").textContent="ERROR: "+e.message.toUpperCase();
