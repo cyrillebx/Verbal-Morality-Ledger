@@ -416,7 +416,7 @@ function initSpeech(){
         let hi=txt;
         found.forEach(s=>{hi=hi.replace(new RegExp("\\b"+s+"\\b","gi"),"<span class=\"shit\">["+s.toUpperCase()+"]</span>");});
         document.getElementById("transcript").innerHTML=">> "+hi;
-        if(final&&!processing){processing=true;showAccuseModal(found[0]);}
+        if(!processing){processing=true;showAccuseModal(found[0]);}
       }else{document.getElementById("transcript").textContent=">> "+txt;}
     };
     r.onerror=e=>{if(e.error==="not-allowed"){document.getElementById("transcript").textContent="MIC ACCESS DENIED";stopMic();}else if(e.error!=="no-speech"&&e.error!=="aborted")console.warn("Speech ("+lang+"):",e.error);};
