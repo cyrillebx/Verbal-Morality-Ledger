@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Verbal Morality Ledger</title>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/libs/xrpl-latest-min.js"></script>
 <script src="/libs/xrpl-connect.umd.js"></script>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap");
@@ -133,8 +134,9 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
     <div class="ph"><div class="led" id="connLed"></div><div class="plabel">Step 1 - Citizen Authentication</div></div>
     <div class="pb">
       <div class="xaman-area">
-        <div class="xaman-desc">Choose your XRPL wallet to authenticate.<br/><span style="color:var(--r)">Ensure your wallet is set to Testnet.</span></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:4px 0">
+        <div class="xaman-desc">Connect your XRPL wallet to authenticate.<br/><span style="color:var(--r)">Ensure your wallet is set to Testnet.</span></div>
+        <button class="btn-g" id="btnConnect" onclick="showWalletPicker()">Connect Wallet</button>
+        <div id="walletPicker" style="display:none;flex-direction:column;gap:8px;width:100%;max-width:260px;margin-top:4px">
           <button class="btn-g" id="btnXaman" onclick="connectXaman()">Xaman</button>
           <button class="btn-g" id="btnCrossmark" onclick="connectCrossmark()">Crossmark</button>
           <button class="btn-g" id="btnGemWallet" onclick="connectGemWallet()">GemWallet</button>
@@ -256,7 +258,8 @@ function initWalletManager(){
   });
   walletManager.on("error",(err)=>{setEl("signinStatus","ERROR: "+(err?.message||String(err)).toUpperCase());resetSigninBtns();});
 }
-function resetSigninBtns(){["btnXaman","btnCrossmark","btnGemWallet"].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=id.replace("btn","");}});}
+function showWalletPicker(){document.getElementById("btnConnect").style.display="none";document.getElementById("walletPicker").style.display="flex";}
+function resetSigninBtns(){document.getElementById("btnConnect").style.display="";document.getElementById("btnConnect").disabled=false;document.getElementById("walletPicker").style.display="none";["btnXaman","btnCrossmark","btnGemWallet"].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=id.replace("btn","");}});}
 async function connectXaman(){
   initWalletManager();
   document.getElementById("btnXaman").disabled=true;
@@ -329,6 +332,7 @@ function addAnotherUser(){
   setEl("signinStatus","");
   resetSigninBtns();
   document.getElementById("signinQR").style.display="none";
+  document.getElementById("walletPicker").style.display="none";
   document.getElementById("signinDeepLink").style.display="none";
   document.getElementById("usernameInput").value="";
   showStep("signin");
