@@ -40,25 +40,18 @@ const FINE_AMOUNT = 100000; // 0.1 XRP in drops
 let hotWallet = null;
 let xrplClient = null;
 
-async function initHotWallet() {
-  try {
+// Called before any route that needs XRPL — safe to call multiple times
+async function ensureXrpl() {
+  if (!xrplClient) {
     xrplClient = new Client(XRPL_WS);
+  }
+  if (!xrplClient.isConnected()) {
     await xrplClient.connect();
+  }
+  if (!hotWallet) {
     hotWallet = Wallet.fromSeed(process.env.HOT_WALLET_SEED);
-    const bal = await xrplClient.getXrpBalance(hotWallet.address);
-    console.log("Hot wallet:", hotWallet.address, "Balance:", bal, "XRP");
-  } catch (e) {
-    console.error("Hot wallet init failed:", e.message);
   }
 }
-initHotWallet();
-
-// Keep XRPL connection alive
-setInterval(async () => {
-  if (!xrplClient?.isConnected()) {
-    try { await xrplClient.connect(); } catch(e) {}
-  }
-}, 30000);
 
 // Sessions: address -> { username, balance (drops), swearCount, depositTx }
 const SESSIONS_FILE = path.join(__dirname, "sessions.json");
@@ -158,7 +151,7 @@ app.post("/api/username", (req, res) => {
 app.post("/api/deposit", async (req, res) => {
   const { address } = req.body;
   if (!address) return res.status(400).json({ error: "Missing address" });
-  if (!hotWallet) return res.status(500).json({ error: "Hot wallet not ready" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
 
   try {
     let created;
@@ -231,7 +224,7 @@ app.post("/api/fine", async (req, res) => {
   const session = sessions.get(address);
   if (!session) return res.status(404).json({ error: "User not found" });
   if (session.balance < FINE_AMOUNT) return res.status(400).json({ error: "Insufficient vault balance" });
-  if (!hotWallet || !xrplClient) return res.status(500).json({ error: "Hot wallet not ready" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
 
   try {
     // Deduct from session balance immediately
@@ -268,6 +261,7 @@ app.post("/api/withdraw", async (req, res) => {
   const session = sessions.get(address);
   if (!session) return res.status(404).json({ error: "User not found" });
   if (session.balance < 1000000) return res.status(400).json({ error: "Balance too low to withdraw (min 1 XRP for fees)" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
 
   try {
     const withdrawAmount = session.balance - 100000; // keep 0.1 for fee
@@ -296,7 +290,7 @@ app.post("/api/withdraw", async (req, res) => {
 app.get("/api/deposit-prepare", async (req, res) => {
   const { address } = req.query;
   if (!address) return res.status(400).json({ error: "Missing address" });
-  if (!hotWallet || !xrplClient) return res.status(500).json({ error: "Hot wallet not ready" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
   try {
     const tx = await xrplClient.autofill({
       TransactionType: "Payment",
@@ -316,7 +310,7 @@ app.get("/api/deposit-prepare", async (req, res) => {
 app.post("/api/deposit-submit", async (req, res) => {
   const { address, txBlob } = req.body;
   if (!address || !txBlob) return res.status(400).json({ error: "Missing fields" });
-  if (!xrplClient) return res.status(500).json({ error: "XRPL client not ready" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
   try {
     const result = await xrplClient.submitAndWait(txBlob);
     const txHash = result.result.hash;
@@ -353,7 +347,7 @@ app.post("/api/fine-by-username", async (req, res) => {
   if (!entry) return res.status(404).json({ error: "User not found" });
   const [address, session] = entry;
   if (session.balance < FINE_AMOUNT) return res.status(400).json({ error: "Insufficient vault balance" });
-  if (!hotWallet || !xrplClient) return res.status(500).json({ error: "Hot wallet not ready" });
+  try { await ensureXrpl(); } catch(e) { return res.status(500).json({ error: "XRPL connection failed: " + e.message }); }
   try {
     session.balance -= FINE_AMOUNT;
     session.swearCount += 1;
