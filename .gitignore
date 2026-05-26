@@ -4,3 +4,4 @@ node_modules/
 sessions.json
 cert.pem
 key.pem
+public/audio/
