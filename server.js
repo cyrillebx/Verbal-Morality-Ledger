@@ -75,6 +75,11 @@ function saveSessions() {
 const sessions = loadSessions();
 const sseClients = new Map();
 
+// ── CONFIG ───────────────────────────────────────────────
+app.get("/api/config", (req, res) => {
+  res.json({ xamanApiKey: process.env.XAMAN_API_KEY });
+});
+
 // ── PING ─────────────────────────────────────────────────
 app.get("/api/ping", async (req, res) => {
   try {

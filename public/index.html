@@ -117,7 +117,6 @@ button:disabled:hover{background:transparent;color:var(--a);box-shadow:none;}
 .modal-status{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:10px;min-height:16px;}
 .modal-btns{display:flex;gap:8px;justify-content:center;margin-top:14px;}
 footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margin-top:24px;padding-top:16px;border-top:1px solid var(--border);line-height:2;}
-xrpl-wallet-connector{position:fixed;left:-9999px;bottom:-9999px;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -134,8 +133,14 @@ xrpl-wallet-connector{position:fixed;left:-9999px;bottom:-9999px;pointer-events:
     <div class="ph"><div class="led" id="connLed"></div><div class="plabel">Step 1 - Citizen Authentication</div></div>
     <div class="pb">
       <div class="xaman-area">
-        <div class="xaman-desc">Connect your XRPL wallet to authenticate.<br/>Supports Xaman, Crossmark, and GemWallet.<br/><span style="color:var(--r)">Ensure your wallet is set to Testnet.</span></div>
-        <button class="btn-g" id="signinBtn" onclick="openWalletConnector()">Connect Wallet</button>
+        <div class="xaman-desc">Choose your XRPL wallet to authenticate.<br/><span style="color:var(--r)">Ensure your wallet is set to Testnet.</span></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:4px 0">
+          <button class="btn-g" id="btnXaman" onclick="connectXaman()">Xaman</button>
+          <button class="btn-g" id="btnCrossmark" onclick="connectCrossmark()">Crossmark</button>
+          <button class="btn-g" id="btnGemWallet" onclick="connectGemWallet()">GemWallet</button>
+        </div>
+        <div class="qr-wrap" id="signinQR" style="display:none"><img id="signinQRImg" src="" style="width:160px;height:160px"/></div>
+        <a class="deeplink" id="signinDeepLink" href="#" target="_blank">Open in Xaman App</a>
         <div class="step-status" id="signinStatus"></div>
       </div>
       <div class="charity-note">FINES DONATED TO: <a href="https://www.tourettescotland.org" target="_blank">TOURETTE SCOTLAND</a> (SC021851) - TESTNET<br/>CHARGE PER INFRACTION: <span style="color:var(--g)">0.1 XRP</span></div>
@@ -209,7 +214,6 @@ xrpl-wallet-connector{position:fixed;left:-9999px;bottom:-9999px;pointer-events:
 <footer>VERBAL MORALITY LEDGER v2.032 - XRPL TESTNET ENFORCEMENT DIVISION<br/>IN AID OF TOURETTE SCOTLAND - ALL TRANSACTIONS IMMUTABLE - HAVE A NICE DAY</footer>
 </div>
 <audio id="vms-audio" src="/audio/vms.mp3" preload="auto"></audio>
-<xrpl-wallet-connector id="wallet-connector"></xrpl-wallet-connector>
 <div class="modal-bg" id="accuseModal">
   <div class="modal">
     <div class="modal-title">WHO SAID THAT?</div>
@@ -230,41 +234,65 @@ function showStep(id){document.querySelectorAll(".step").forEach(s=>s.classList.
 function initWalletManager(){
   if(walletManager)return;
   const{WalletManager,XamanAdapter,CrossmarkAdapter,GemWalletAdapter}=window.XRPLConnect;
-  const adapters=[new XamanAdapter()];
-  if(CrossmarkAdapter)adapters.push(new CrossmarkAdapter());
-  if(GemWalletAdapter)adapters.push(new GemWalletAdapter());
-  walletManager=new WalletManager({adapters,network:"testnet"});
-  const connector=document.getElementById("wallet-connector");
-  if(connector&&connector.setWalletManager)connector.setWalletManager(walletManager);
+  walletManager=new WalletManager({
+    adapters:[new XamanAdapter(),new CrossmarkAdapter(),new GemWalletAdapter()].filter(Boolean),
+    network:"testnet"
+  });
   walletManager.on("connect",async(account)=>{
     myAddress=account.address;
     document.getElementById("connLed").className="led on";
+    document.getElementById("signinQR").style.display="none";
+    document.getElementById("signinDeepLink").style.display="none";
     setEl("signinStatus","AUTHENTICATED - CHECKING SESSION...");
-    const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
+    resetSigninBtns();
     try{
-      const sessionRes=await fetch("/api/session/"+myAddress);
-      if(sessionRes.ok){
-        const sess=await sessionRes.json();
-        if(sess.balance>0){
-          myUsername=sess.username;
-          setEl("signinStatus","WELCOME BACK "+sess.username.toUpperCase()+" - RESUMING SESSION");
-          setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);
-        }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
+      const s=await fetch("/api/session/"+myAddress);
+      if(s.ok){
+        const sess=await s.json();
+        if(sess.balance>0){myUsername=sess.username;setEl("signinStatus","WELCOME BACK "+sess.username.toUpperCase()+" - RESUMING SESSION");setTimeout(()=>{showStep("main");initSpeech();renderUsersGrid();},800);}
+        else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
       }else{setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
     }catch(e){setEl("signinStatus","AUTHENTICATED - CHOOSE YOUR CALLSIGN");setTimeout(()=>showStep("username"),600);}
   });
-  walletManager.on("error",(err)=>{
-    setEl("signinStatus","ERROR: "+(err?.message||String(err)).toUpperCase());
-    const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
-  });
+  walletManager.on("error",(err)=>{setEl("signinStatus","ERROR: "+(err?.message||String(err)).toUpperCase());resetSigninBtns();});
 }
-async function openWalletConnector(){
-  const btn=document.getElementById("signinBtn");
-  btn.disabled=true;btn.textContent="Connecting...";
-  setEl("signinStatus","OPENING WALLET CONNECTOR...");
+function resetSigninBtns(){["btnXaman","btnCrossmark","btnGemWallet"].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=id.replace("btn","");}});}
+async function connectXaman(){
   initWalletManager();
-  const connector=document.getElementById("wallet-connector");
-  if(connector&&connector.open)await connector.open();
+  document.getElementById("btnXaman").disabled=true;
+  document.getElementById("btnXaman").textContent="Connecting...";
+  setEl("signinStatus","GENERATING XAMAN QR...");
+  try{
+    const{xamanApiKey}=await fetch("/api/config").then(r=>r.json());
+    await walletManager.connect("xaman",{
+      apiKey:xamanApiKey,
+      network:"testnet",
+      onQRCode:(qr)=>{
+        document.getElementById("signinQRImg").src=qr;
+        document.getElementById("signinQR").style.display="block";
+        setEl("signinStatus","SCAN QR IN XAMAN APP...");
+      },
+      onDeepLink:(link)=>{
+        const dl=document.getElementById("signinDeepLink");dl.href=link;dl.style.display="block";
+      }
+    });
+  }catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
+}
+async function connectCrossmark(){
+  initWalletManager();
+  document.getElementById("btnCrossmark").disabled=true;
+  document.getElementById("btnCrossmark").textContent="Connecting...";
+  setEl("signinStatus","APPROVE IN CROSSMARK EXTENSION...");
+  try{await walletManager.connect("crossmark",{network:"testnet"});}
+  catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
+}
+async function connectGemWallet(){
+  initWalletManager();
+  document.getElementById("btnGemWallet").disabled=true;
+  document.getElementById("btnGemWallet").textContent="Connecting...";
+  setEl("signinStatus","APPROVE IN GEMWALLET EXTENSION...");
+  try{await walletManager.connect("gemwallet",{network:"testnet"});}
+  catch(e){setEl("signinStatus","ERROR: "+e.message.toUpperCase());resetSigninBtns();}
 }
 async function submitUsername(){
   const val=document.getElementById("usernameInput").value.trim();
@@ -299,7 +327,9 @@ function addAnotherUser(){
   myAddress=null;myUsername=null;
   if(walletManager)try{walletManager.disconnect();}catch(e){}
   setEl("signinStatus","");
-  const btn=document.getElementById("signinBtn");btn.disabled=false;btn.textContent="Connect Wallet";
+  resetSigninBtns();
+  document.getElementById("signinQR").style.display="none";
+  document.getElementById("signinDeepLink").style.display="none";
   document.getElementById("usernameInput").value="";
   showStep("signin");
 }
