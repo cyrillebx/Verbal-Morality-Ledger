@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Verbal Morality Ledger</title>
 <script>window.process={env:{NODE_ENV:"production"}};</script>
-<script src="/socket.io/socket.io.js"></script>
 <script src="/libs/xrpl-latest-min.js"></script>
 <script src="/libs/xrpl-connect.umd.js"></script>
 <style>
@@ -167,6 +166,8 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
       <div class="xaman-area">
         <div class="xaman-desc">Deposit <span style="color:var(--g);font-weight:bold">5 XRP</span> into the enforcement vault.<br/>Fines are auto-deducted with no approval needed per swear.<br/>Any remaining balance is returned when you leave.</div>
         <button class="btn-g" id="depositBtn" onclick="startDeposit()">Deposit 5 XRP</button>
+        <div class="qr-wrap" id="depositQR" style="display:none"><img id="depositQRImg" src="" style="width:160px;height:160px"/></div>
+        <a class="deeplink" id="depositDeepLink" href="#" target="_blank" style="display:none">Open in Xaman App</a>
         <div class="step-status" id="depositStatus"></div>
       </div>
     </div>
@@ -257,9 +258,8 @@ function setLang(lang){
     recognitions=[];
   }
 }
-const socket=io({transports:["polling","websocket"]});
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
-socket.on("leaderboard",renderLeaderboard);
+setInterval(()=>fetch("/api/leaderboard").then(r=>r.json()).then(renderLeaderboard).catch(()=>{}),3000);
 function showStep(id){document.querySelectorAll(".step").forEach(s=>s.classList.remove("active"));document.getElementById("step-"+id).classList.add("active");}
 function initWalletManager(){
   if(walletManager)return;
@@ -340,9 +340,14 @@ async function startDeposit(){
     const txRes=await fetch("/api/deposit-prepare?address="+encodeURIComponent(myAddress));
     const{tx,error}=await txRes.json();
     if(error)throw new Error(error);
-    setEl("depositStatus","APPROVE 5 XRP PAYMENT IN YOUR WALLET...");
+    setEl("depositStatus","CHECK YOUR XAMAN APP — APPROVE THE 5 XRP PAYMENT");
     btn.textContent="Waiting for approval...";
-    const signed=await walletManager.sign(tx);
+    const signed=await walletManager.sign(tx,{
+      onQRCode:(qr)=>{document.getElementById("depositQRImg").src=qr;document.getElementById("depositQR").style.display="block";},
+      onDeepLink:(link)=>{const dl=document.getElementById("depositDeepLink");dl.href=link;dl.style.display="block";}
+    });
+    document.getElementById("depositQR").style.display="none";
+    document.getElementById("depositDeepLink").style.display="none";
     const txBlob=signed?.tx_blob||signed?.txBlob||signed;
     setEl("depositStatus","SUBMITTING TO XRPL...");
     const submitRes=await fetch("/api/deposit-submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:myAddress,txBlob})});

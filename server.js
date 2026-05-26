@@ -3,7 +3,6 @@ import cors from "cors";
 import { Xumm } from "xumm";
 import { Client, Wallet } from "xrpl";
 import { createServer } from "http";
-import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -19,12 +18,6 @@ const keyPath = path.join(__dirname, "key.pem");
 const httpServer = existsSync(certPath) && existsSync(keyPath)
   ? createHttpsServer({ cert: readFileSync(certPath), key: readFileSync(keyPath) }, app)
   : createServer(app);
-
-const io = new Server(httpServer, {
-  cors: { origin: "*" },
-  // Vercel serverless doesn't support WebSocket upgrades — polling only
-  transports: process.env.VERCEL ? ["polling"] : ["polling", "websocket"],
-});
 
 app.use(cors());
 app.use(express.json());
@@ -387,7 +380,6 @@ function getLeaderboard() {
 
 function broadcastLeaderboard() {
   saveSessions();
-  io.emit("leaderboard", getLeaderboard());
 }
 
 // ── SSE ───────────────────────────────────────────────────
@@ -433,12 +425,6 @@ app.get("/api/session/:address", (req, res) => {
   const session = sessions.get(req.params.address);
   if (!session) return res.status(404).json({ error: "Not found" });
   res.json({ ...session, address: req.params.address });
-});
-
-// ── SOCKET.IO ─────────────────────────────────────────────
-io.on("connection", (socket) => {
-  socket.emit("leaderboard", getLeaderboard());
-  socket.on("disconnect", () => {});
 });
 
 // Local dev: start listening. On Vercel the handler export below is used instead.
