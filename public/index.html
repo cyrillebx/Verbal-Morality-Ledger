@@ -352,7 +352,7 @@ async function startDeposit(){
     const txBlob=signed?.tx_blob||signed?.txBlob||signed?.response?.hex||signed?.response?.tx_blob||(typeof signed==="string"?signed:null);
     const txHash=signed?.txid||signed?.hash||signed?.response?.txid||signed?.response?.dispatched_result;
     setEl("depositStatus","CONFIRMING DEPOSIT...");
-    const submitRes=await fetch("/api/deposit-submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:myAddress,txBlob,txHash})});
+    const submitRes=await fetch("/api/deposit-submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:myAddress,username:myUsername,txBlob,txHash})});
     const data=await submitRes.json();
     if(data.error)throw new Error(data.error);
     setEl("depositStatus","VAULT FUNDED - ENTERING SESSION...");
