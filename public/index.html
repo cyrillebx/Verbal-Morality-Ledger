@@ -230,6 +230,21 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
 <script>
 const SWEARS=["fuck","shit","cunt","bitch","bastard","asshole","motherfucker","fucker","dickhead","prick","cock","twat","wanker","bollocks","arsehole","shithead","fuckhead","bellend","knobhead","tosser","scrote","slag","skank","whore","scumbag","douchebag","fuckwit","thundercunt","fuckface","shithouse","arsewipe","fucknut","shitbag","sleazebag","dirtbag","pisshead","wankstain","knob","pillock","minger","nonce","choad","fuckstick","dipshit","jackass","dumbass","bullshit","bugger","clusterfuck","gobshite","shitstain","asswipe","toerag","numbnuts","plonker","merde","putain","connard","con","salaud","encule","bordel","foutre","connasse","pute","baiser","couilles","bite","niquer","branleur","fils de pute","va te faire foutre","enfoire","fils de chienne","chienne","garce","trainee","poufiasse","grognasse","salopard","salope","ordure","fumier","pourriture","charogne","raclure","trou du cul","tete de noeud","tete de con","mange-merde","petasse","tapette","pede","fiotte","baltringue","bouffon","dechet","vermine","parasite","lope","lopette","fdp","ntm","batar","sale race","pauvre con","gros con","sale con","petit con"];
 let myAddress=null,myUsername=null,walletManager=null,recognitions=[],isListening=false,processing=false,pendingWord=null;
+let audioCtx=null,vmsBuffer=null;
+async function initAudio(){
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==="suspended")await audioCtx.resume();
+    const ab=await(await fetch("/audio/vms.mp3")).arrayBuffer();
+    vmsBuffer=await audioCtx.decodeAudioData(ab);
+  }catch(e){}
+}
+function playVMS(){
+  if(!audioCtx||!vmsBuffer)return;
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  const src=audioCtx.createBufferSource();
+  src.buffer=vmsBuffer;src.connect(audioCtx.destination);src.start(0);
+}
 const socket=io();
 setInterval(()=>{document.getElementById("clk").textContent=new Date().toLocaleTimeString("en-GB",{hour12:false});},1000);
 socket.on("leaderboard",renderLeaderboard);
@@ -356,8 +371,7 @@ function renderLeaderboard(data){
 }
 async function showAccuseModal(word){
   pendingWord=word;
-  const audio=document.getElementById("vms-audio");
-  audio.currentTime=0;audio.play().catch(()=>{});
+  playVMS();
   document.getElementById("accuseWord").textContent="[ "+word.toUpperCase()+" ]";
   document.getElementById("accuseStatus").textContent="";
   try{
@@ -411,8 +425,7 @@ async function toggleMic(){if(isListening){stopMic();return;}try{await navigator
 function startMic(){
   isListening=true;
   recognitions.forEach(r=>{try{r.start();}catch(e){}});
-  const audio=document.getElementById("vms-audio");
-  audio.muted=true;audio.play().then(()=>{audio.pause();audio.currentTime=0;audio.muted=false;}).catch(()=>{});
+  initAudio();
   document.getElementById("micBtn").classList.add("listening");
   document.getElementById("micBtn").textContent="stop";
   document.getElementById("transcript").textContent="MONITORING...";
