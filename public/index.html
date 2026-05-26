@@ -154,7 +154,7 @@ footer{text-align:center;font-size:9px;letter-spacing:2px;color:var(--dim);margi
     <div class="ph"><div class="led am"></div><div class="plabel">Step 2 - Choose Your Callsign</div></div>
     <div class="pb">
       <div class="fl">Enter your username</div>
-      <div class="frow"><input type="text" id="usernameInput" placeholder="e.g. DevJohn, AngryPM..." maxlength="16"/><button class="btn-g" onclick="submitUsername()">Confirm</button></div>
+      <div class="frow"><input type="text" id="usernameInput" placeholder="e.g. DevJohn, AngryPM..." maxlength="16" onkeydown="if(event.key==='Enter')submitUsername()"/><button class="btn-g" onclick="submitUsername()">Confirm</button></div>
       <div class="step-status" id="usernameStatus"></div>
     </div>
   </div>
